@@ -1,0 +1,91 @@
+# =====================================================
+# Місце: backend/.dockerignore
+# =====================================================
+# Менший build context → швидший docker build (Docker daemon
+# відправляє context на build сервер, кожен MB рахується).
+# Плюс безпека: не пакуємо випадково секрети чи .git історію.
+
+# === Maven build output ===
+target/
+*.jar
+!app.jar
+*.war
+*.ear
+*.class
+
+# === Maven wrapper backup ===
+.mvn/wrapper/maven-wrapper.jar.bak
+
+# === IDE / Editor ===
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+.vscode/
+*.swp
+*.swo
+.factorypath
+.classpath
+.project
+.settings/
+
+# === Git ===
+.git/
+.gitignore
+.gitattributes
+
+# === OS ===
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+
+# === Logs ===
+*.log
+logs/
+log/
+
+# === Secrets / env ===
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+secrets/
+credentials/
+
+# === Documentation (не потрібна в production image) ===
+README.md
+README*
+*.md
+docs/
+HELP.md
+
+# === Test artifacts ===
+test-output/
+test-results/
+surefire-reports/
+failsafe-reports/
+jacoco-report/
+*.test.log
+
+# === CI/CD config (не потрібно всередині image) ===
+.github/
+.gitlab-ci.yml
+.circleci/
+Jenkinsfile
+
+# === Docker (не копіюй сам Dockerfile у образ) ===
+Dockerfile
+.dockerignore
+docker-compose*.yml
+
+# === Misc tooling ===
+.cache/
+.tmp/
+*.tmp
+node_modules/
