@@ -1,5 +1,5 @@
 # =====================================================
-# Місце: backend/Dockerfile
+# Місце: backendJobTracker/Dockerfile
 # =====================================================
 # Production multi-stage build для Spring Boot backend.
 # Не для dev — у dev використовуй `./mvnw spring-boot:run` (швидко, з DevTools hot reload).

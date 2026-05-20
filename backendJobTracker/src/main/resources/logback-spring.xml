@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-    Місце: backend/src/main/resources/logback-spring.xml
+    Місце: backendJobTracker/src/main/resources/logback-spring.xml
 
     Logging стратегія:
     - dev/local/default → human-readable console з MDC полями

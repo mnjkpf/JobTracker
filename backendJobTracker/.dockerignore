@@ -1,5 +1,5 @@
 # =====================================================
-# Місце: backend/.dockerignore
+# Місце: backendJobTracker/.dockerignore
 # =====================================================
 # Менший build context → швидший docker build (Docker daemon
 # відправляє context на build сервер, кожен MB рахується).
