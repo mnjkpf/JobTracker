@@ -11,4 +11,5 @@ public class LoginRequest {
     private String email;
     @NotBlank(message = "Password cannot be blank")
     private String password;
+    private String displayName;
 }
