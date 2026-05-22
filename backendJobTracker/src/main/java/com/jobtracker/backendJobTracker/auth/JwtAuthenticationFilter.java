@@ -29,6 +29,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter{
         if(token != null) {
             setAuthentication(token);
         }
+
+        filterChain.doFilter(request, response);
     }
 
     
@@ -48,9 +50,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter{
         SecurityContextHolder.getContext().setAuthentication(authToken);
     }
 
-    @Override
-    protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
+    
+
+        @Override
+    protected boolean shouldNotFilter(@NonNull HttpServletRequest request) throws ServletException {
         String path = request.getRequestURI();
-        return path.startsWith("/api/auth/");
+        return path.startsWith("/api/v1/auth/")
+                || path.startsWith("/actuator/health")
+                || path.startsWith("/swagger-ui")
+                || path.startsWith("/v3/api-docs");
     }
+
 }

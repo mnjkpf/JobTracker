@@ -32,5 +32,10 @@ public record CustomUserDetails(User user) implements UserDetails {
         return user.getEmail();
     }
 
+    @Override
+    public boolean isEnabled() {
+        return user.isActive();
+    }
+
     
 }
