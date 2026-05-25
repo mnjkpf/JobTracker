@@ -2,26 +2,20 @@
 package com.jobtracker.backendJobTracker.exception;
 
 // Імпорт HttpServletRequest — об'єкт HTTP-запиту, з якого можемо отримати URI, заголовки тощо
-import jakarta.servlet.http.HttpServletRequest;
-// Імпорт інтерфейсу логера SLF4J — стандарт логування у Spring
+import java.net.URI;
+import java.time.Instant;
+
 import org.slf4j.Logger;
-// Фабрика для створення екземпляра логера
 import org.slf4j.LoggerFactory;
-// Enum зі стандартними HTTP-статусами (404, 409, 401, 422, 500 і т.д.)
 import org.springframework.http.HttpStatus;
-// Клас Spring для формування відповіді у форматі RFC 7807 (Problem Details for HTTP APIs)
 import org.springframework.http.ProblemDetail;
-// Обгортка HTTP-відповіді: дозволяє задати статус, заголовки та тіло
 import org.springframework.http.ResponseEntity;
-// Анотація, що позначає метод як обробник конкретного типу винятку
 import org.springframework.web.bind.annotation.ExceptionHandler;
-// Анотація, що робить клас глобальним обробником винятків для всіх @RestController
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-// Клас URI — використовується для полів type та instance у ProblemDetail
-import java.net.URI;
-// Клас часу в UTC у форматі ISO-8601 — для поля timestamp
-import java.time.Instant;
+import com.jobtracker.backendJobTracker.email.EmailSendException;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 // @RestControllerAdvice — Spring сканує цей клас та підключає його обробники до всіх REST-контролерів у застосунку
 @RestControllerAdvice
@@ -126,4 +120,22 @@ public class GlobalExceptionHandler {
         // Формуємо фінальну відповідь: HTTP-статус + тіло у форматі application/problem+json
         return ResponseEntity.status(status).body(problem);
     }
+
+    @ExceptionHandler(EmailSendException.class)
+    public ResponseEntity<ProblemDetail> handleEmailSendException(
+            EmailSendException ex, HttpServletRequest request) {
+        // 502 Bad Gateway — наш SMTP-сервер не відповідає або відмовляє.
+        // Не зливаємо деталі SMTP (могло б leak host/port/credentials).
+        log.error("Email send failed (path={}): {}", request.getRequestURI(), ex.getMessage(), ex);
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.BAD_GATEWAY,
+                "Failed to send email. Please try again later.");
+        problem.setTitle("Email Service Unavailable");
+        problem.setType(URI.create("https://jobtracker.local/errors/EMAIL_SEND_FAILED"));
+        problem.setInstance(URI.create(request.getRequestURI()));
+        problem.setProperty("errorCode", "EMAIL_SEND_FAILED");
+        problem.setProperty("timestamp", Instant.now().toString());
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(problem);
+    }
+
 }

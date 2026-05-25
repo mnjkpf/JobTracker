@@ -61,7 +61,16 @@ public class AuthService {
         String email = request.getEmail().toLowerCase().trim();
         
         Authentication  auth;
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UnauthorizedException("Invalid email or password"));
 
+        if (!user.isActive()) {
+            throw new UnauthorizedException("Account is disabled");
+        }
+        if(!HashUtil.verifyHash(request.getPassword(), user.getPasswordHash()) ) {
+            // Захист від timing attacks — якщо довжина пароля не співпадає, то навіть не виконуємо authenticationManager.authenticate()
+            throw new UnauthorizedException("Invalid email or password");
+        }
         try {
             auth = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(email, request.getPassword())
@@ -77,9 +86,9 @@ public class AuthService {
         // principal = CustomUserDetails (наша імплементація UserDetails).
         // Через record accessor .user() дістаємо реального User entity.
         CustomUserDetails principal = (CustomUserDetails) auth.getPrincipal();
-        User user = principal.user();
+        User userAuth = principal.user();
 
-        return jwtService.generateTokens(user);
+        return jwtService.generateTokens(userAuth);
 
     }
 
