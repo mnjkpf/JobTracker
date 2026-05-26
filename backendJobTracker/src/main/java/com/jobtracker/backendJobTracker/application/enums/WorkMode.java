@@ -1,5 +1,5 @@
 package com.jobtracker.backendJobTracker.application.enums;
 
 public enum WorkMode {
-    ONSITE, HYBRID, REMOTE
+    ONSITE, HYBRID, REMOTE,NOT_SPECIFIED
 }
