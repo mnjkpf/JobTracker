@@ -1,6 +1,9 @@
 package com.jobtracker.backendJobTracker.company.dto;
 
-import com.jobtracker.backendJobTracker.company.CampanySize;
+
+import java.util.UUID;
+
+import com.jobtracker.backendJobTracker.company.CompanySize;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -8,10 +11,10 @@ import lombok.Setter;
 @Getter
 @Setter
 public class CompanyResponse {
-    private String id;
-    private String name;
+    private UUID id;
+    private String companyName;
     private String website;
     private String industry;
     private String description;
-    private CampanySize size;
+    private CompanySize size;
 }

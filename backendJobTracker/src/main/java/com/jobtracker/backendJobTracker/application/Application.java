@@ -22,12 +22,22 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.Setter;
 
 @Entity
-@Table(name = "applications")
+@Table(
+    name = "applications",
+    // ДОДАНО: composite unique. Юзер не може мати дві заявки на ту саму URL,
+    // але різні юзери — можуть. Глобальний unique на url зломав би це.
+    uniqueConstraints = @UniqueConstraint(
+        name = "uk_applications_user_url",
+        columnNames = {"user_id", "url"}
+    )
+)
 @Getter
 @Setter
 public class Application {
@@ -39,7 +49,12 @@ public class Application {
     @Column(nullable = false)
     private String name;
 
+    @Column(columnDefinition = "TEXT")
     private String description;
+
+    @Column(columnDefinition = "TEXT")
+    private String notes;
+
     @Column(nullable = false)
     private String url;
 
@@ -47,12 +62,16 @@ public class Application {
     @JoinColumn(name = "company_id", nullable = false)
     private Company company;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
-    private ApplicationStatus applicationStatus;
+    private ApplicationStatus status;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, name = "contract_type")
     private ContractType contractType;
 
     @Enumerated(EnumType.STRING)
@@ -60,22 +79,49 @@ public class Application {
     private Seniority seniority;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, name = "work_mode")
     private WorkMode workMode;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, name = "source_board")
     private SourceBoard sourceBoard;
 
+    // ВИПРАВЛЕНО: location було nullable=false, але багато remote-вакансій
+    // не мають конкретного location. Тепер nullable — це OK.
+    private String location;
+
+    @Column(name = "salary_min")
+    private Integer salaryMin;
+
+    @Column(name = "salary_max")
+    private Integer salaryMax;
+
+    @Column(name = "salary_currency", length = 3)
+    private String salaryCurrency;
+
+    /** Коли юзер реально подався (status перейшов в APPLIED). Nullable якщо статус SAVED. */
+    @Column(name = "applied_at")
     private Instant appliedAt;
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+
+    // ДОДАНО: soft delete. DELETE endpoint ставить archived=true, не видаляє рядок.
+    @Column(nullable = false)
+    private boolean archived = false;
+
+    @Column(nullable = false, updatable = false, name = "created_at")
+    private Instant createdAt;
+
+    @Column(nullable = false, name = "updated_at")
+    private Instant updatedAt;
 
     @PrePersist
     void onCreate() {
-        appliedAt = Instant.now();
+        Instant now = Instant.now();
+        createdAt = now;
+        updatedAt = now;
     }
 
-    
+    @PreUpdate
+    void onUpdate() {
+        updatedAt = Instant.now();
+    }
 }

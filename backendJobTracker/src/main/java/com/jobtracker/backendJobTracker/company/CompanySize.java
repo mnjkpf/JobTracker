@@ -1,5 +1,5 @@
 package com.jobtracker.backendJobTracker.company;
 
-public enum CampanySize {
+public enum CompanySize {
     STARTUP, SMALL, MEDIUM, LARGE, ENTERPRISE
 }

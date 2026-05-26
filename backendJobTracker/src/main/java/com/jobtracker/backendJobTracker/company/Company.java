@@ -15,11 +15,20 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.Setter;
 
 @Entity
-@Table(name = "companies")
+@Table(
+    name = "companies",
+    // ДОДАНО: composite unique. Юзер не може мати дві компанії "Allegro",
+    // але два юзери — можуть мати "Allegro" кожен. Глобальний unique на name зломав би.
+    uniqueConstraints = @UniqueConstraint(
+        name = "uk_companies_user_name",
+        columnNames = {"user_id", "name"}
+    )
+)
 @Getter
 @Setter
 public class Company {
@@ -27,19 +36,21 @@ public class Company {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
+
     @Column(nullable = false)
     private String name;
-    @Column(nullable = false)
+
+    // Все nullable — юзер може створити компанію знаючи лише назву.
     private String website;
     private String industry;
+
+    @Column(columnDefinition = "TEXT")
     private String description;
-    
+
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private CampanySize size;
+    private CompanySize size;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
-    
 }
