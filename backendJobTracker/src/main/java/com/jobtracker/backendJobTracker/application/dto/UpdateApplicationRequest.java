@@ -12,6 +12,8 @@ import lombok.Setter;
 @Getter
 @Setter
 public class UpdateApplicationRequest {
+
+        
         @Size(max = 255)
         String name;
  

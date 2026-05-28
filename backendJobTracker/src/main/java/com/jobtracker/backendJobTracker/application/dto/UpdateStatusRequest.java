@@ -10,10 +10,11 @@ import lombok.Setter;
 @Getter
 @Setter
 public class UpdateStatusRequest {
+    
     @NotNull(message = "Status is required")
-    ApplicationStatus status;
+    private ApplicationStatus status;
  
     @Size(max = 2000, message = "Note must not exceed 2000 characters")
-    String note;
+    private String note;
 
 }

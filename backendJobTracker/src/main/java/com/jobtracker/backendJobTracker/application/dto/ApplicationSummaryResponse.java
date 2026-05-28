@@ -15,7 +15,7 @@ import lombok.Setter;
 @Setter
 public class ApplicationSummaryResponse {
     private UUID id;
-    private String name;
+    private String companyName;
     private ApplicationStatus applicationStatus;
     private ContractType contractType;
     private Seniority seniority;

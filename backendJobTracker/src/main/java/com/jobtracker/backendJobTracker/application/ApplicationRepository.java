@@ -7,6 +7,7 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import com.jobtracker.backendJobTracker.application.enums.ApplicationStatus;
 import com.jobtracker.backendJobTracker.application.enums.ContractType;
@@ -14,7 +15,7 @@ import com.jobtracker.backendJobTracker.application.enums.Seniority;
 import com.jobtracker.backendJobTracker.application.enums.SourceBoard;
 import com.jobtracker.backendJobTracker.application.enums.WorkMode;
 
-public interface ApplicationRepository extends JpaRepository<Application, UUID> {
+public interface ApplicationRepository extends JpaRepository<Application, UUID>, JpaSpecificationExecutor<Application> {
 
     // ДОДАНО: tenant-safe single fetch. Не використовуйте просто findById —
     // це поверне Application іншого юзера, якщо хтось вгадає UUID.
@@ -34,9 +35,4 @@ public interface ApplicationRepository extends JpaRepository<Application, UUID> 
     List<Application> findByUserIdAndWorkMode(UUID userId, WorkMode workMode);
 
     List<Application> findByUserIdAndSourceBoard(UUID userId, SourceBoard sourceBoard);
-
-    // Примітка: всі finder'и вище — тимчасові. У наступній ітерації 3A
-    // замінимо на Specifications для composable filtering. Список фільтрів
-    // зростатиме (status + workMode + seniority + searchQuery + ...) — і
-    // методів буде 2^N. Specifications уникають цього.
 }
