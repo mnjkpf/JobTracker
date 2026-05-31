@@ -43,7 +43,7 @@ CREATE TABLE applications (
         CHECK (contract_type IN ('UOP', 'B2B', 'UZ', 'UMOWA_O_DZIELO', 'NOT_SPECIFIED')),
 
     CONSTRAINT check_application_seniority
-        CHECK (seniority IN ('INTERN', 'JUNIOR', 'JUNIOR_PLUS', 'MID', 'SENIOR', 'LEAD')),
+        CHECK (seniority IN ('INTERN', 'JUNIOR', 'JUNIOR_PLUS', 'MID', 'SENIOR', 'LEAD','NOT_SPECIFIED')),
 
     CONSTRAINT check_application_work_mode
         CHECK (work_mode IN ('ONSITE', 'HYBRID', 'REMOTE', 'NOT_SPECIFIED')),

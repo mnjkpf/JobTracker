@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import com.jobtracker.backendJobTracker.application.parsing.ParsingException;
 import com.jobtracker.backendJobTracker.email.EmailSendException;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -65,6 +66,15 @@ public class GlobalExceptionHandler {
         log.warn("Business rule violation: {} (path={})", ex.getMessage(), request.getRequestURI());
         // 422 Unprocessable Entity — запит синтаксично правильний, але порушує бізнес-правило
         return build(HttpStatus.UNPROCESSABLE_ENTITY, "Business Rule Violation", "BUSINESS_RULE_VIOLATION", ex, request);
+    }
+
+    // Помилки парсингу job posting (не вдалось завантажити HTML / витягнути дані)
+    @ExceptionHandler(ParsingException.class)
+    public ResponseEntity<ProblemDetail> handleParsingException(
+            ParsingException ex, HttpServletRequest request) {
+        log.warn("Job posting parsing failed: {} (path={})", ex.getMessage(), request.getRequestURI());
+        // 422 Unprocessable Entity — URL валідний синтаксично, але вакансію не вдалось розпарсити.
+        return build(HttpStatus.UNPROCESSABLE_ENTITY, "Parsing Failed", "PARSING_FAILED", ex, request);
     }
 
     // "Запобіжник" — ловить усі непередбачені винятки (NullPointerException, помилки БД тощо)
