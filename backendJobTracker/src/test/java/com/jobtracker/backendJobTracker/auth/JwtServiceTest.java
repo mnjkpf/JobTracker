@@ -133,6 +133,11 @@ class JwtServiceTest {
         assertThat(response.getExpiresIn()).isEqualTo(ACCESS_TTL.toSeconds());
         assertThat(response.getRefreshToken()).isNotBlank();
 
+        // accessToken тепер заповнюється (фікс setAccessToken) і є валідним JWT з email у subject.
+        assertThat(response.getAccessToken()).isNotBlank();
+        assertThat(jwtService.validateToken(response.getAccessToken())).isTrue();
+        assertThat(jwtService.getEmailFromToken(response.getAccessToken())).isEqualTo("bob@example.com");
+
         ArgumentCaptor<RefreshToken> captor = ArgumentCaptor.forClass(RefreshToken.class);
         verify(refreshTokenRepository).save(captor.capture());
         RefreshToken saved = captor.getValue();
