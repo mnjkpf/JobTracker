@@ -1,4 +1,4 @@
-package com.jobtracker.backendJobTracker.cv;
+package com.jobtracker.backendJobTracker.cv.models;
 
 import java.time.Instant;
 import java.util.UUID;
