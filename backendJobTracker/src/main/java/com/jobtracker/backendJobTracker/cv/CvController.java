@@ -11,8 +11,10 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.jobtracker.backendJobTracker.auth.CustomUserDetails;
 import com.jobtracker.backendJobTracker.cv.dto.AddSkillRequest;
@@ -32,6 +34,7 @@ import com.jobtracker.backendJobTracker.cv.dto.UpdateLanguageRequest;
 import com.jobtracker.backendJobTracker.cv.dto.UpdateMasterCvRequest;
 import com.jobtracker.backendJobTracker.cv.dto.UpdateProjectRequest;
 import com.jobtracker.backendJobTracker.cv.dto.UpdateSkillRequest;
+import com.jobtracker.backendJobTracker.cv.dto.parse.ParsedCv;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -42,6 +45,9 @@ import lombok.RequiredArgsConstructor;
 public class CvController {
  
     private final CvService cvService;
+    private final CvExtractionService cvExtractionService;
+    private final CvMapper cvMapper;  
+
  
     @GetMapping("/me")
     public MasterCvResponse getMy(@AuthenticationPrincipal CustomUserDetails principal) {
@@ -183,5 +189,26 @@ public class CvController {
             @PathVariable UUID id) {
         cvService.deleteLanguage(principal.user().getId(), id);
     }
+
+    @PostMapping(value = "/upload-preview", consumes = "multipart/form-data")
+    public ParsedCv uploadPreview(
+            @AuthenticationPrincipal CustomUserDetails principal,
+            @RequestParam("file") MultipartFile file) {
+        // userId не потрібен — preview ні з чим не зв'язаний у БД. Але AuthN
+        // принципал лишаємо щоб endpoint вимагав JWT (захист від анонімного abuse).
+        return cvExtractionService.preview(file);
+    }
+
+    @PostMapping(value = "/upload", consumes = "multipart/form-data")
+    @ResponseStatus(HttpStatus.CREATED)
+    public MasterCvResponse upload(
+            @AuthenticationPrincipal CustomUserDetails principal,
+            @RequestParam("file") MultipartFile file) {
+        UUID userId = principal.user().getId();
+        cvExtractionService.extractAndReplace(userId, file);
+        // Перевикористовуємо getMy щоб повернути CV у тому ж форматі що і GET.
+        return cvService.getMy(userId);
+    }
+
 
 }
