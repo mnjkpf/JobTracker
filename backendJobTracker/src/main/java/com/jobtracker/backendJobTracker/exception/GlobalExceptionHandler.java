@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import com.jobtracker.backendJobTracker.cv.CvExtractionException;
 import com.jobtracker.backendJobTracker.email.EmailSendException;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -136,6 +137,21 @@ public class GlobalExceptionHandler {
         problem.setProperty("errorCode", "EMAIL_SEND_FAILED");
         problem.setProperty("timestamp", Instant.now().toString());
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(problem);
+    }
+
+    @ExceptionHandler(CvExtractionException.class)
+    public ResponseEntity<ProblemDetail> handleCvExtractionException(
+            CvExtractionException ex, HttpServletRequest request) {
+        log.warn("CV extraction failed (path={}): {}", request.getRequestURI(), ex.getMessage());
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.UNPROCESSABLE_ENTITY,
+                ex.getMessage());
+        problem.setTitle("CV Extraction Failed");
+        problem.setType(URI.create("https://jobtracker.local/errors/CV_EXTRACTION_FAILED"));       
+        problem.setInstance(URI.create(request.getRequestURI()));
+        problem.setProperty("errorCode", "CV_EXTRACTION_FAILED");
+        problem.setProperty("timestamp", Instant.now().toString());
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(problem);    
     }
 
 }
