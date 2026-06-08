@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import com.jobtracker.backendJobTracker.application.parsing.ParsingException;
 import com.jobtracker.backendJobTracker.cv.CvExtractionException;
 import com.jobtracker.backendJobTracker.email.EmailSendException;
 
