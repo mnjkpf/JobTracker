@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<!--
+  Тестова фікстура для PracujParser. Це НЕ повна сторінка pracuj.pl —
+  лише мінімальний HTML з тими data-test атрибутами, на які спирається парсер.
+  Польські діакритики навмисні: перевіряємо normalize() (NFD + strip + nbsp).
+  Salary використовує неразривні пробіли (&nbsp;) як на реальному сайті.
+-->
+<html lang="pl">
+<head><title>Junior Java Developer (Spring) - Comarch | pracuj.pl</title></head>
+<body>
+  <main>
+    <h1 data-test="text-positionName">Junior Java Developer (Spring)</h1>
+
+    <div data-test="text-employerName">Comarch S.A.</div>
+
+    <div data-test="text-region">Kraków, małopolskie</div>
+
+    <div data-test="text-salary">8&nbsp;000 - 12&nbsp;000 PLN brutto / mies.</div>
+
+    <div data-test="section-employment-type-name-text">Umowa o pracę</div>
+
+    <div data-test="section-work-mode">Praca hybrydowa</div>
+
+    <div data-test="section-position-level">Junior</div>
+
+    <section data-test="section-responsibilities">
+      Tworzenie i utrzymanie aplikacji backendowych w oparciu o Spring Boot.
+      Współpraca z zespołem przy projektowaniu REST API oraz pokryciu kodu testami.
+    </section>
+  </main>
+</body>
+</html>
