@@ -25,6 +25,8 @@ import com.jobtracker.backendJobTracker.application.dto.ApplicationSummaryRespon
 import com.jobtracker.backendJobTracker.application.dto.CreateApplicationRequest;
 import com.jobtracker.backendJobTracker.application.dto.UpdateApplicationRequest;
 import com.jobtracker.backendJobTracker.application.dto.UpdateStatusRequest;
+import com.jobtracker.backendJobTracker.application.gap.GapAnalysisService;
+import com.jobtracker.backendJobTracker.application.gap.dto.GapAnalysisResponse;
 import com.jobtracker.backendJobTracker.application.parsing.dto.ParseUrlPreviewResponse;
 import com.jobtracker.backendJobTracker.application.parsing.dto.ParseUrlRequest;
 import com.jobtracker.backendJobTracker.auth.CustomUserDetails;
@@ -39,6 +41,7 @@ import lombok.RequiredArgsConstructor;
 public class ApplicationController {
  
     private final ApplicationService applicationService;
+    private final GapAnalysisService gapAnalysisService;
  
     // ─── Manual CRUD ────────────────────────────────────────────────
  
@@ -120,4 +123,25 @@ public class ApplicationController {
             @Valid @RequestBody ParseUrlRequest request) {
         return applicationService.createFromUrl(principal.user().getId(), request.getUrl());
     }
+
+    @PostMapping("/{id}/gap-analysis")
+    public GapAnalysisResponse runGapAnalysis(
+            @AuthenticationPrincipal CustomUserDetails principal,
+            @PathVariable UUID id) {
+        return gapAnalysisService.runAnalysis(principal.user().getId(), id);
+    }
+    
+    /**
+     * Refresh результату без повторної LLM-екстракції. Швидко — лише pgvector
+     * similarity проти збережених ApplicationSkills.
+     * <p>
+     * 422 (BusinessRuleException) якщо нема CV або ще не запускав runAnalysis.
+     */
+    @GetMapping("/{id}/gap-analysis")
+    public GapAnalysisResponse getGapAnalysis(
+            @AuthenticationPrincipal CustomUserDetails principal,
+            @PathVariable UUID id) {
+        return gapAnalysisService.getAnalysis(principal.user().getId(), id);
+    }
+
 }
