@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,6 +19,7 @@ import com.jobtracker.backendJobTracker.auth.CustomUserDetails;
 import com.jobtracker.backendJobTracker.cv.tailored.dto.GenerateTailoredCvRequest;
 import com.jobtracker.backendJobTracker.cv.tailored.dto.TailoredCvResponse;
 import com.jobtracker.backendJobTracker.cv.tailored.dto.TailoredCvSummaryResponse;
+import com.jobtracker.backendJobTracker.cv.tailored.export.DocxExporter;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -28,7 +30,7 @@ import lombok.RequiredArgsConstructor;
 public class TailoredCvController {
  
     private final TailoredCvService tailoredCvService;
- 
+    private final DocxExporter docxExporter;
     
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -64,6 +66,23 @@ public class TailoredCvController {
             @PathVariable UUID appId,
             @PathVariable UUID tcvId) {
         tailoredCvService.delete(principal.user().getId(), tcvId);
+    }
+
+    @GetMapping("/{tcvId}/download")
+    public ResponseEntity<byte[]> download(
+            @AuthenticationPrincipal CustomUserDetails principal,
+            @PathVariable UUID appId,
+            @PathVariable UUID tcvId) {
+        
+        TailoredCvResponse cv = tailoredCvService.getById(principal.user().getId(), tcvId);
+        byte[] docx = docxExporter.export(cv);
+        
+        return ResponseEntity.ok()
+            .header("Content-Type", 
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+            .header("Content-Disposition", 
+                "attachment; filename=\"tailored_cv_v" + cv.getVersion() + ".docx\"")
+            .body(docx);
     }
 }
 
