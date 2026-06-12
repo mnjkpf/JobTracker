@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
@@ -40,8 +41,9 @@ import lombok.RequiredArgsConstructor;
 public class CvDocxTemplate {
  
     
-    private static final DateTimeFormatter PERIOD_FORMAT = DateTimeFormatter.ofPattern("MMM yyyy");
- 
+    private static final DateTimeFormatter PERIOD_FORMAT =
+        DateTimeFormatter.ofPattern("MMM yyyy", Locale.ENGLISH);
+
     private final DocxSectionBuilder builder;
  
     /**

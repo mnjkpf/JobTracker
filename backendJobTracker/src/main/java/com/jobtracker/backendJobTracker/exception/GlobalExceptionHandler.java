@@ -4,12 +4,15 @@ package com.jobtracker.backendJobTracker.exception;
 // Імпорт HttpServletRequest — об'єкт HTTP-запиту, з якого можемо отримати URI, заголовки тощо
 import java.net.URI;
 import java.time.Instant;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -132,6 +135,72 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(status).body(problem);
     }
 
+    
+
+    @ExceptionHandler(CvExtractionException.class)
+    public ResponseEntity<ProblemDetail> handleCvExtractionException(
+            CvExtractionException ex, HttpServletRequest request) {
+        log.warn("CV extraction failed (path={}): {}", request.getRequestURI(), ex.getMessage());
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.UNPROCESSABLE_ENTITY,
+                ex.getMessage());
+        problem.setTitle("CV Extraction Failed");
+        problem.setType(URI.create("https://jobtracker.local/errors/CV_EXTRACTION_FAILED"));       
+        problem.setInstance(URI.create(request.getRequestURI()));
+        problem.setProperty("errorCode", "CV_EXTRACTION_FAILED");
+        problem.setProperty("timestamp", Instant.now().toString());
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(problem);    
+    }
+    // Обробник @Valid помилок на @RequestBody — повертає 400 з деталями полів.
+    // Раніше catch-all перехоплював і віддавав 500 — клієнт думав що сервер
+    // зламався, хоча насправді його body було невалідне.
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ProblemDetail> handleValidationException(
+            MethodArgumentNotValidException ex, HttpServletRequest request) {
+        // Збираємо всі помилки полів у читабельний рядок:
+        // "position: must not be blank, tone: must not be null"
+        // BindingResult містить FieldError для кожного невалідного поля.
+        String details = ex.getBindingResult().getFieldErrors().stream()
+                .map(err -> err.getField() + ": " + err.getDefaultMessage())
+                .collect(Collectors.joining(", "));
+ 
+        if (details.isBlank()) {
+            details = "Validation failed";
+        }
+ 
+        log.warn("Validation failed: {} (path={})", details, request.getRequestURI());
+ 
+        // Не можемо використати build() helper напряму, бо ex.getMessage() для
+        // MethodArgumentNotValidException — це жахливий debug-дамп. Будуємо вручну.
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.BAD_REQUEST, details);
+        problem.setTitle("Validation Error");
+        problem.setType(URI.create("https://jobtracker.local/errors/VALIDATION_FAILED"));
+        problem.setInstance(URI.create(request.getRequestURI()));
+        problem.setProperty("errorCode", "VALIDATION_FAILED");
+        problem.setProperty("timestamp", Instant.now().toString());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
+    }
+ 
+    // Обробник відсутнього обов'язкового query param — теж 400.
+    // Наприклад: GET /api/v1/applications?status=...  — а юзер не передав status.
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ProblemDetail> handleMissingParamException(
+            MissingServletRequestParameterException ex, HttpServletRequest request) {
+        String details = "Missing required parameter: " + ex.getParameterName();
+        log.warn("Missing parameter: {} (path={})", details, request.getRequestURI());
+ 
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.BAD_REQUEST, details);
+        problem.setTitle("Bad Request");
+        problem.setType(URI.create("https://jobtracker.local/errors/MISSING_PARAMETER"));
+        problem.setInstance(URI.create(request.getRequestURI()));
+        problem.setProperty("errorCode", "MISSING_PARAMETER");
+        problem.setProperty("timestamp", Instant.now().toString());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
+    }
+
+
     @ExceptionHandler(EmailSendException.class)
     public ResponseEntity<ProblemDetail> handleEmailSendException(
             EmailSendException ex, HttpServletRequest request) {
@@ -147,21 +216,6 @@ public class GlobalExceptionHandler {
         problem.setProperty("errorCode", "EMAIL_SEND_FAILED");
         problem.setProperty("timestamp", Instant.now().toString());
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(problem);
-    }
-
-    @ExceptionHandler(CvExtractionException.class)
-    public ResponseEntity<ProblemDetail> handleCvExtractionException(
-            CvExtractionException ex, HttpServletRequest request) {
-        log.warn("CV extraction failed (path={}): {}", request.getRequestURI(), ex.getMessage());
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
-                HttpStatus.UNPROCESSABLE_ENTITY,
-                ex.getMessage());
-        problem.setTitle("CV Extraction Failed");
-        problem.setType(URI.create("https://jobtracker.local/errors/CV_EXTRACTION_FAILED"));       
-        problem.setInstance(URI.create(request.getRequestURI()));
-        problem.setProperty("errorCode", "CV_EXTRACTION_FAILED");
-        problem.setProperty("timestamp", Instant.now().toString());
-        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(problem);    
     }
 
 }
