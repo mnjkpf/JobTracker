@@ -47,6 +47,7 @@ import com.jobtracker.backendJobTracker.company.CompanyService;
 import com.jobtracker.backendJobTracker.exception.BusinessRuleException;
 import com.jobtracker.backendJobTracker.exception.ConflictException;
 import com.jobtracker.backendJobTracker.exception.ResourceNotFoundException;
+import com.jobtracker.backendJobTracker.interview.InterviewPrepService;
 import com.jobtracker.backendJobTracker.user.User;
 import com.jobtracker.backendJobTracker.user.UserRepository;
 
@@ -72,7 +73,7 @@ public class ApplicationService {
     // ДОДАНО для URL-based flow
     private final JobPostingExtractionService extractionService;
     private final JobBoardDetector jobBoardDetector;
- 
+    private final InterviewPrepService interviewPrepService;
     // ═══════════════════════════════════════════════════════════════
     // READ
     // ═══════════════════════════════════════════════════════════════
@@ -241,24 +242,36 @@ public class ApplicationService {
         return applicationMapper.toResponse(applicationRepository.save(app));
     }
  
-    @Transactional
+   @Transactional
     public ApplicationResponse updateStatus(UUID userId, UUID id, UpdateStatusRequest r) {
         Application app = fetchOwned(userId, id);
- 
+    
         ApplicationStatus from = app.getStatus();
         ApplicationStatus to = r.getStatus();
- 
+    
         stateMachine.validateTransition(from, to);
- 
+    
         app.setStatus(to);
         if (to == ApplicationStatus.APPLIED && app.getAppliedAt() == null) {
             app.setAppliedAt(Instant.now());
         }
- 
+    
         Application saved = applicationRepository.save(app);
         writeHistory(saved, from, to, r.getNote());
+    
+        // ДОДАНО: hook на статус INTERVIEW.
+        // Auto-create порожній InterviewPrep заготовку (status=DRAFT, без questions).
+        // Юзер сам потім тисне "Generate" у UI коли захоче згенерувати guide.
+        //
+        // createIfNotExists є idempotent — повторні переходи в INTERVIEW
+        // (наприклад INTERVIEW → REJECTED → INTERVIEW) не створюють дубліката.
+        if (to == ApplicationStatus.INTERVIEW) {
+            interviewPrepService.createIfNotExists(saved.getId());
+        }
+    
         return applicationMapper.toResponse(saved);
     }
+
  
     // ═══════════════════════════════════════════════════════════════
     // DELETE / ARCHIVE
