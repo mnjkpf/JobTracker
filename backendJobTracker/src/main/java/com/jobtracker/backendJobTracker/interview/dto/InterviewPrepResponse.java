@@ -12,7 +12,7 @@ import lombok.Setter;
 @Getter
 @Setter
 public class InterviewPrepResponse {
-        private UUID id;
+    private UUID id;
  
     
     private UUID applicationId;
