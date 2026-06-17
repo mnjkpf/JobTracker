@@ -75,8 +75,7 @@ public class InterviewPrepService {
                         "Interview prep not found for application: " + applicationId));
  
         
-        ParsedPrepGuide parsed = generator.generate(app, master);
- 
+        ParsedPrepGuide parsed = generator.generate(userId, app, master);
         
         interviewQuestionRepository.deleteByInterviewPrepId(prep.getId());
         interviewQuestionRepository.flush();

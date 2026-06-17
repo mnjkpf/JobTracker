@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.UUID;
 
 import com.jobtracker.backendJobTracker.interview.enums.InterviewPrepStatus;
+import com.jobtracker.backendJobTracker.interview.rag.dto.RelevantNoteResponse;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -25,4 +26,5 @@ public class InterviewPrepResponse {
     private List<InterviewQuestionResponse> technicalQuestions;
     private List<InterviewQuestionResponse> behavioralQuestions;
     private List<InterviewQuestionResponse> questionsToAsk;
+    private List<RelevantNoteResponse> relevantPastNotes;
 }

@@ -20,41 +20,54 @@ import com.jobtracker.backendJobTracker.cv.repo.ExperienceRepository;
 import com.jobtracker.backendJobTracker.cv.repo.MasterCvSkillRepository;
 import com.jobtracker.backendJobTracker.exception.BusinessRuleException;
 import com.jobtracker.backendJobTracker.interview.dto.parse.ParsedPrepGuide;
+import com.jobtracker.backendJobTracker.interview.notes.dto.SimilarInterviewNote;
+import com.jobtracker.backendJobTracker.interview.rag.InterviewPrepRagPrompt;
+import com.jobtracker.backendJobTracker.interview.rag.InterviewRagService;
 
 import lombok.RequiredArgsConstructor;
 
 @Component
 @RequiredArgsConstructor
 public class InterviewPrepGenerator {
- 
+
     private static final Logger LOGGER = LoggerFactory.getLogger(InterviewPrepGenerator.class);
-    // ↑ ВИПРАВЛЕНО: був TailoredCvGenerator.class
- 
+
     private static final int MAX_EXPERIENCES_IN_CONTEXT = 5;
     private static final int MAX_SKILLS_IN_CONTEXT = 20;
- 
+    // ВИДАЛЕНО: MAX_PAST_NOTES_IN_PROMPT — перенесено в InterviewPrepRagPrompt
+
     private final AiService aiService;
     private final ObjectMapper objectMapper;
     private final ApplicationSkillRepository applicationSkillRepository;
     private final ExperienceRepository experienceRepository;
     private final MasterCvSkillRepository masterCvSkillRepository;
- 
-    public ParsedPrepGuide generate(Application app, MasterCv master) {
+    private final InterviewRagService ragService;
+
+    public ParsedPrepGuide generate(UUID userId, Application app, MasterCv master) {
         String jobContext = buildJobContext(app);
         String masterContext = buildMasterContext(master);
- 
-        String prompt = InterviewPrepPrompt.build(jobContext, masterContext);
+
+        // RAG retrieval — нотатки з минулих preps релевантні до цієї заявки.
+        // Якщо нема (перша співбесіда) — повертається empty List → formatPastNotes
+        // поверне null → InterviewPrepPrompt.build пропустить секцію PAST NOTES.
+        List<SimilarInterviewNote> relevantNotes = ragService.findRelevantPastNotes(userId, app);
+
+        // ВИПРАВЛЕНО: pastNotesContext тепер реально визначений.
+        // Використовуємо utility замість inline buildPastNotesContext (видалено).
+        String pastNotesContext = InterviewPrepRagPrompt.formatPastNotes(relevantNotes);
+
+        LOGGER.debug("Generating prep with {} relevant past notes", relevantNotes.size());
+
+        String prompt = InterviewPrepPrompt.build(jobContext, masterContext, pastNotesContext);
         String json = aiService.complete(prompt);
- 
+
         if (json == null || json.isBlank()) {
-            // ВИПРАВЛЕНО: повідомлення про interview prep, не tailored CV
             throw new BusinessRuleException("LLM returned empty response for interview prep");
         }
- 
-        // ВИПРАВЛЕНО: раніше parseJson не викликався взагалі — LLM відповідь
-        // повністю ігнорувалась і questions завжди порожні.
+
         return parseJson(json);
     }
+
  
     private String buildJobContext(Application app) {
         StringBuilder sb = new StringBuilder();
@@ -62,13 +75,10 @@ public class InterviewPrepGenerator {
         sb.append("Company: ")
                 .append(app.getCompany() != null ? safe(app.getCompany().getName()) : "")
                 .append("\n");
-        // ДОДАНО: seniority — впливає на складність питань (junior vs senior)
         sb.append("Seniority: ").append(app.getSeniority()).append("\n");
         sb.append("Work mode: ").append(app.getWorkMode()).append("\n");
         sb.append("Location: ").append(safe(app.getLocation())).append("\n");
- 
-        // ВИПРАВЛЕНО: skill.getSkill().getName() — реальні назви, не toString() entities.
-        // ВИПРАВЛЕНО: joining через ", " — не "[skill1, skill2]" від List.toString()
+
         List<ApplicationSkill> skills = applicationSkillRepository.findByApplicationId(app.getId());
         if (!skills.isEmpty()) {
             String techList = skills.stream()
@@ -76,26 +86,21 @@ public class InterviewPrepGenerator {
                     .collect(Collectors.joining(", "));
             sb.append("Technologies: ").append(techList).append("\n");
         }
- 
+
         sb.append("\nDescription:\n").append(safe(app.getDescription()));
         return sb.toString();
     }
- 
-    /**
-     * ДОДАНО: повний контекст master CV.
-     * Раніше було тільки hero block — LLM не міг оцінити seniority за досвідом.
-     */
+
     private String buildMasterContext(MasterCv cv) {
         UUID cvId = cv.getId();
         StringBuilder sb = new StringBuilder();
- 
+
         sb.append("Name: ").append(safe(cv.getFullName())).append("\n");
         sb.append("Headline: ").append(safe(cv.getHeadline())).append("\n");
         if (cv.getSummary() != null && !cv.getSummary().isBlank()) {
             sb.append("\nSummary:\n").append(cv.getSummary()).append("\n");
         }
- 
-        // Experiences — top 5 для prep context (не треба ВСІ як у tailored CV)
+
         List<Experience> experiences = experienceRepository.findByMasterCvIdOrderByStartDateDesc(cvId);
         if (!experiences.isEmpty()) {
             sb.append("\nExperience overview:\n");
@@ -107,8 +112,7 @@ public class InterviewPrepGenerator {
                         .append(")\n");
             });
         }
- 
-        // Skills — top 20
+
         List<MasterCvSkill> skills = masterCvSkillRepository.findByMasterCvId(cvId);
         if (!skills.isEmpty()) {
             String skillList = skills.stream()
@@ -117,21 +121,20 @@ public class InterviewPrepGenerator {
                     .collect(Collectors.joining(", "));
             sb.append("\nSkills: ").append(skillList).append("\n");
         }
- 
+
         return sb.toString();
     }
- 
+
     private ParsedPrepGuide parseJson(String json) {
         try {
             String cleaned = stripMarkdownFences(json);
             return objectMapper.readValue(cleaned, ParsedPrepGuide.class);
         } catch (Exception e) {
             LOGGER.error("Failed to parse LLM JSON: {} | raw: {}", e.getMessage(), json);
-            // ВИПРАВЛЕНО: повідомлення про interview prep, не tailored CV
             throw new BusinessRuleException("Could not parse interview prep response");
         }
     }
- 
+
     private String stripMarkdownFences(String s) {
         String trimmed = s.trim();
         if (trimmed.startsWith("```")) {
@@ -143,7 +146,7 @@ public class InterviewPrepGenerator {
         }
         return trimmed;
     }
- 
+
     private String safe(String s) {
         return s == null ? "" : s;
     }
