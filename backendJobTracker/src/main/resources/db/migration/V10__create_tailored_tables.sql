@@ -10,7 +10,7 @@ CREATE TABLE tailored_cvs (
     github_url VARCHAR(255) NOT NULL,
     summary TEXT NOT NULL,
     language VARCHAR(10) NOT NULL,
-    promt_version VARCHAR(20) NOT NULL,
+    prompt_version VARCHAR(20) NOT NULL,
     
     CREATED_AT TIMESTAMPTZ NOT NULL,
 
@@ -20,7 +20,7 @@ CREATE TABLE tailored_cvs (
         ON DELETE CASCADE,
 
     CONSTRAINT check_tailored_cvs_language
-        CHECK (tonlanguagee IN ('PL', 'EN')),
+        CHECK (language IN ('PL', 'EN')),
     CONSTRAINT uk_tailored_cvs_version
         UNIQUE (application_id, version)
 );
@@ -67,7 +67,7 @@ CREATE TABLE tailored_skills (
         FOREIGN KEY (tailored_cv_id)
         REFERENCES tailored_cvs(id)
         ON DELETE CASCADE
-)
+);
 
 CREATE INDEX idx_tailored_skills_tailored_cv
     ON tailored_skills (tailored_cv_id);
@@ -87,7 +87,7 @@ CREATE TABLE tailored_experiences (
         FOREIGN KEY (tailored_cv_id)
         REFERENCES tailored_cvs(id)
         ON DELETE CASCADE
-)
+);
 
 CREATE INDEX idx_tailored_experiences_tailored_cv
     ON tailored_experiences (tailored_cv_id);
@@ -107,7 +107,7 @@ CREATE TABLE tailored_projects (
         FOREIGN KEY (tailored_cv_id)
         REFERENCES tailored_cvs(id)
         ON DELETE CASCADE
-)
+);
 
 CREATE INDEX idx_tailored_projects_tailored_cv
     ON tailored_projects (tailored_cv_id);
@@ -125,7 +125,7 @@ CREATE TABLE tailored_languages (
         FOREIGN KEY (tailored_cv_id)
         REFERENCES tailored_cvs(id)
         ON DELETE CASCADE
-)
+);
 
 CREATE INDEX idx_tailored_languages_tailored_cv
     ON tailored_languages (tailored_cv_id);

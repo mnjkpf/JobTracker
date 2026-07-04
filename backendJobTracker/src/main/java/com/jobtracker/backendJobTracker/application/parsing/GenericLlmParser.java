@@ -8,8 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
  
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.jobtracker.backendJobTracker.application.ai.AiService;
-import com.jobtracker.backendJobTracker.application.ai.prompt.JobExtractionPrompt;
+import com.jobtracker.backendJobTracker.ai.AiService;
 import com.jobtracker.backendJobTracker.application.enums.ContractType;
 import com.jobtracker.backendJobTracker.application.enums.Seniority;
 import com.jobtracker.backendJobTracker.application.enums.SourceBoard;

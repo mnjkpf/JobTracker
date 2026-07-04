@@ -12,8 +12,6 @@ import org.springframework.data.repository.query.Param;
 public interface VerificationTokenRepository extends JpaRepository<VerificationToken, java.util.UUID> {
     Optional<VerificationToken> findByTokenHashAndTokenType(String tokenHash, VerificationTokenType tokenType);
 
-    Optional<VerificationToken> findByToken(String token);
-
     @Modifying
     @Query("""
             UPDATE VerificationToken vt

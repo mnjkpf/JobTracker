@@ -1,25 +1,25 @@
-package com.jobtracker.backendJobTracker.application.ai.prompt;
+package com.jobtracker.backendJobTracker.application.parsing;
 
 /**
  * Prompt для extraction структурованих даних вакансії з сирого тексту.
  * Жорстка вимога ONLY JSON, явна схема з enum-значеннями, null для невідомого.
  */
 public final class JobExtractionPrompt {
- 
+
     private JobExtractionPrompt() {
     }
- 
+
     public static final String VERSION = "v1";
- 
+
     public static String build(String jobText) {
         return SYSTEM_INSTRUCTION + "\n\n=== JOB POSTING TEXT ===\n" + jobText;
     }
- 
+
     private static final String SYSTEM_INSTRUCTION = """
             You extract structured data from job postings. The text may be in
             Polish or English. Output ONLY a valid JSON object — no markdown code
             fences, no explanation, no preamble. Just the raw JSON.
- 
+
             Use exactly this schema:
             {
               "position": string,          // job title, e.g. "Junior Java Developer"
@@ -33,7 +33,7 @@ public final class JobExtractionPrompt {
               "salaryMax": number|null,    // monthly maximum, integer
               "salaryCurrency": string|null // 3-letter code: PLN, EUR, USD
             }
- 
+
             Rules:
             - If a field is not present in the text, use null. Do NOT guess or invent.
             - For seniority: map Polish terms (junior→JUNIOR, mid/regular→MID, senior→SENIOR).
@@ -46,4 +46,3 @@ public final class JobExtractionPrompt {
             - position and companyName are required — extract your best guess even if uncertain.
             """;
 }
-
