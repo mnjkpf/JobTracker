@@ -74,7 +74,9 @@ public class InterviewNoteSimilaritySearch {
         String noteTypeStr = rs.getString("note_type");              // не "NoteType"
         r.setNoteType(noteTypeStr == null ? null : NoteType.valueOf(noteTypeStr));
 
-        // cosine distance 0..2 → similarity = 1 - distance, clamp у [0, 1]
+        // Cosine distance у pgvector 0..2 → similarity = 1 - distance.
+        // Клампимо у [0, 1]: якщо distance > 1 ("протилежні" тексти) — similarity = 0,
+        // щоб API ніколи не повертав негативних значень.
         double distance = rs.getDouble("distance");
         double similarity = Math.max(0.0, Math.min(1.0, 1.0 - distance));
         r.setSimilarity(similarity);

@@ -7,6 +7,7 @@ import java.util.UUID;
  
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,9 +43,11 @@ public class GapAnalysisService {
  
     /**
      * Поріг для "матчу". Емпіричний. 0.75 → треба досить сильна схожість.
-     * Винести у application.properties якщо буде потреба тюнити.
+     * Винесено у application.properties (jobtracker.similarity.gap-threshold).
+     * Скіли — короткі рядки, тому схожість вища ніж у RAG нотаток → поріг більший.
      */
-    private static final double MATCH_THRESHOLD = 0.75;
+    @Value("${jobtracker.similarity.gap-threshold:0.75}")
+    private double gapThreshold;
  
     private final ApplicationRepository applicationRepository;
     private final ApplicationSkillRepository applicationSkillRepository;
@@ -165,7 +168,7 @@ public class GapAnalysisService {
  
         response.setSimilarity(similarity);
         response.setMatchedSkillName(best.cvSkillName);  // показуємо навіть якщо нижче порогу
-        response.setMatched(similarity >= MATCH_THRESHOLD);
+        response.setMatched(similarity >= gapThreshold);
         return response;
     }
  

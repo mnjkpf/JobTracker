@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,6 +24,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import com.jobtracker.backendJobTracker.application.Application;
 import com.jobtracker.backendJobTracker.application.ApplicationRepository;
@@ -53,6 +55,13 @@ class GapAnalysisServiceTest {
 
     private final UUID userId = UUID.randomUUID();
     private final UUID appId = UUID.randomUUID();
+
+    @BeforeEach
+    void injectThreshold() {
+        // gapThreshold — @Value поле (винесене у application.properties). У unit-тесті
+        // без Spring-контексту воно 0.0, тому виставляємо емпіричне значення 0.75 вручну.
+        ReflectionTestUtils.setField(service, "gapThreshold", 0.75);
+    }
 
     private Application ownedApp() {
         Application app = new Application();

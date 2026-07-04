@@ -6,6 +6,7 @@ import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.jobtracker.backendJobTracker.application.Application;
@@ -22,15 +23,20 @@ public class InterviewRagService {
  
     private static final Logger LOGGER = LoggerFactory.getLogger(InterviewRagService.class);
  
-    
-    private static final int MAX_RESULTS = 10;
- 
-    
+    // Скільки кандидатів витягуємо з pgvector до фільтрації. Винесено у
+    // application.properties для тюнінгу без recompile.
+    @Value("${jobtracker.similarity.rag-max-results:10}")
+    private int maxResults;
+
+    // Поріг cosine-similarity для "релевантної" нотатки. Калібровано під
+    // text-embedding-3-small: абсолютні similarity у цієї моделі низькі —
+    // споріднена Java-вакансія до Java-нотаток дає ~0.27–0.38, неспоріднена
+    // (React) ~0.15–0.24. Вище ~0.4 → RAG нічого не знаходить. Дефолт 0.30.
+    @Value("${jobtracker.similarity.rag-threshold:0.30}")
+    private double similarityThreshold;
+
     private static final int MAX_DESCRIPTION_CHARS = 800;
- 
-   
-    private static final double SIMILARITY_THRESHOLD = 0.70;
- 
+
     private final InterviewNoteSimilaritySearch noteSimilaritySearch;
     private final ApplicationSkillRepository applicationSkillRepository;
  
@@ -49,7 +55,7 @@ public class InterviewRagService {
  
         
         List<SimilarInterviewNote> rawResults = noteSimilaritySearch.findSimilar(
-                userId, queryText, MAX_RESULTS);
+                userId, queryText, maxResults);
  
         if (rawResults.isEmpty()) {
             LOGGER.debug("No past notes found for user {} (likely first interview)", userId);
@@ -59,7 +65,7 @@ public class InterviewRagService {
         
         UUID currentAppId = app.getId();
         List<SimilarInterviewNote> filtered = rawResults.stream()
-                .filter(n -> n.getSimilarity() >= SIMILARITY_THRESHOLD)
+                .filter(n -> n.getSimilarity() >= similarityThreshold)
                 .filter(n -> !currentAppId.equals(n.getApplicationId()))
                 .collect(Collectors.toList());
  

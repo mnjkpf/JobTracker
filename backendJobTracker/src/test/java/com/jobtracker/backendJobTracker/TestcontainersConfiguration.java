@@ -13,7 +13,12 @@ class TestcontainersConfiguration {
 	@Bean
 	@ServiceConnection
 	PostgreSQLContainer<?> postgresContainer() {
-		return new PostgreSQLContainer<>(DockerImageName.parse("postgres:latest"));
+		// pgvector-образ (не звичайний postgres) — міграції V6/V12 роблять
+		// CREATE EXTENSION vector та створюють vector(1536)-колонки з HNSW-індексами.
+		// На чистому postgres:latest Flyway впав би і жоден IT не стартував.
+		return new PostgreSQLContainer<>(
+				DockerImageName.parse("pgvector/pgvector:pg18")
+						.asCompatibleSubstituteFor("postgres"));
 	}
 
 	@Bean
