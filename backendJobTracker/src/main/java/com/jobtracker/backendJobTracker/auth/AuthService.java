@@ -67,8 +67,10 @@ public class AuthService {
         if (!user.isActive()) {
             throw new UnauthorizedException("Account is disabled");
         }
-        if(!HashUtil.verifyHash(request.getPassword(), user.getPasswordHash()) ) {
-            // Захист від timing attacks — якщо довжина пароля не співпадає, то навіть не виконуємо authenticationManager.authenticate()
+        // Пароль зберігається через passwordEncoder (BCrypt) у register(), тому й
+        // перевіряти треба тим самим encoder'ом. HashUtil (SHA-256) тут НЕ підходить —
+        // він для refresh-токенів; BCrypt-хеш ($2a$...) ніколи не збігся б із SHA-256.
+        if(!passwordEncoder.matches(request.getPassword(), user.getPasswordHash()) ) {
             throw new UnauthorizedException("Invalid email or password");
         }
         try {

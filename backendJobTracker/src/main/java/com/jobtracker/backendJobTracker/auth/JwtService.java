@@ -70,7 +70,7 @@ public class JwtService {
         // 4. Формуємо відповідь.
         //    expiresIn в секундах — стандарт OAuth 2.0 для клієнтів.
         LoginResponse response = new LoginResponse();
-        response.setRefreshToken(accessToken);
+        response.setAccessToken(accessToken);
         response.setRefreshToken(rawRefreshToken);  // RAW токен — тільки клієнту, не в БД
         response.setTokenType("Bearer");
         response.setExpiresIn(properties.auth().accessTokenTtl().toSeconds());
