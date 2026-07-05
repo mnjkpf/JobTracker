@@ -1,9 +1,20 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { applicationsApi } from './api'
-import type { Application, CreateApplicationRequest, Page, UpdateStatusRequest } from './types'
+import { applicationsApi, gapAnalysisApi } from './api'
+import type {
+  Application,
+  CreateApplicationRequest,
+  GapAnalysis,
+  Page,
+  UpdateApplicationRequest,
+  UpdateStatusRequest,
+} from './types'
 
 const APPLICATIONS_KEY = ['applications'] as const
+
+function statusOf(error: unknown): number | undefined {
+  return (error as { response?: { status?: number } })?.response?.status
+}
 
 function errorMessage(error: unknown, fallback: string): string {
   const e = error as { response?: { data?: { detail?: string } } }
@@ -17,6 +28,14 @@ export const useApplications = () => {
   })
 }
 
+export const useApplication = (id: string) => {
+  return useQuery({
+    queryKey: ['application', id],
+    queryFn: () => applicationsApi.getById(id),
+    enabled: !!id,
+  })
+}
+
 export const useCreateApplication = () => {
   const queryClient = useQueryClient()
   return useMutation({
@@ -26,6 +45,19 @@ export const useCreateApplication = () => {
       toast.success('Application created')
     },
     onError: (error) => toast.error(errorMessage(error, 'Failed to create application')),
+  })
+}
+
+export const useUpdateApplication = (id: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: UpdateApplicationRequest) => applicationsApi.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: APPLICATIONS_KEY })
+      queryClient.invalidateQueries({ queryKey: ['application', id] })
+      toast.success('Application updated')
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to update application')),
   })
 }
 
@@ -55,15 +87,15 @@ export const useUpdateStatus = () => {
     },
 
     onError: (error, _variables, context) => {
-      // Roll back to the pre-mutation snapshot.
       context?.previous?.forEach(([queryKey, data]) => {
         queryClient.setQueryData(queryKey, data)
       })
       toast.error(errorMessage(error, 'Failed to update status'))
     },
 
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: APPLICATIONS_KEY })
+      queryClient.invalidateQueries({ queryKey: ['application', variables.id] })
     },
   })
 }
@@ -77,5 +109,30 @@ export const useDeleteApplication = () => {
       toast.success('Application deleted')
     },
     onError: (error) => toast.error(errorMessage(error, 'Failed to delete application')),
+  })
+}
+
+export const useGapAnalysis = (applicationId: string) => {
+  return useQuery({
+    queryKey: ['gap-analysis', applicationId],
+    queryFn: () => gapAnalysisApi.get(applicationId),
+    enabled: !!applicationId,
+    retry: (failureCount, error) => {
+      const s = statusOf(error)
+      if (s === 404 || s === 422) return false // no analysis / no CV — expected
+      return failureCount < 1
+    },
+  })
+}
+
+export const useRunGapAnalysis = (applicationId: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => gapAnalysisApi.run(applicationId),
+    onSuccess: (data: GapAnalysis) => {
+      queryClient.setQueryData(['gap-analysis', applicationId], data)
+      toast.success('Gap analysis complete')
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Gap analysis failed')),
   })
 }

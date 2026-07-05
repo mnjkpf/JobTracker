@@ -23,3 +23,16 @@ export const STATUS_STYLES: Record<ApplicationStatus, { dot: string; badge: stri
   WITHDRAWN: { dot: 'bg-gray-400', badge: 'bg-gray-100 text-gray-600' },
   GHOSTED: { dot: 'bg-gray-400', badge: 'bg-gray-100 text-gray-600' },
 }
+
+// Solid badge (bg-*-100 / text-*-700) + label for detail-page status pills.
+export const STATUS_META: Record<ApplicationStatus, { label: string; badge: string }> = {
+  SAVED: { label: 'Saved', badge: 'bg-slate-100 text-slate-700' },
+  APPLIED: { label: 'Applied', badge: 'bg-blue-100 text-blue-700' },
+  SCREENING: { label: 'Screening', badge: 'bg-indigo-100 text-indigo-700' },
+  INTERVIEW: { label: 'Interview', badge: 'bg-purple-100 text-purple-700' },
+  FINAL: { label: 'Final', badge: 'bg-amber-100 text-amber-700' },
+  OFFER: { label: 'Offer', badge: 'bg-green-100 text-green-700' },
+  REJECTED: { label: 'Rejected', badge: 'bg-red-100 text-red-700' },
+  WITHDRAWN: { label: 'Withdrawn', badge: 'bg-gray-100 text-gray-600' },
+  GHOSTED: { label: 'Ghosted', badge: 'bg-gray-100 text-gray-600' },
+}

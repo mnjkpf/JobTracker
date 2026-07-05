@@ -24,6 +24,7 @@ export interface Application {
   workMode: WorkMode
   contractType: ContractType
   url: string
+  description?: string | null
   salaryMin: number | null
   salaryMax: number | null
   salaryCurrency: string | null
@@ -77,3 +78,35 @@ export const VALID_TRANSITIONS: Record<ApplicationStatus, ApplicationStatus[]> =
 
 export const isValidTransition = (from: ApplicationStatus, to: ApplicationStatus): boolean =>
   VALID_TRANSITIONS[from].includes(to)
+
+export interface UpdateApplicationRequest {
+  name?: string
+  description?: string
+  location?: string
+  contractType?: ContractType
+  seniority?: Seniority
+  workMode?: WorkMode
+  salaryMin?: number
+  salaryMax?: number
+  salaryCurrency?: string
+}
+
+// ─── Gap analysis — POST/GET /applications/{id}/gap-analysis ──────────
+export interface SkillMatch {
+  requiredSkillName: string
+  requiredSkillId: string
+  matched: boolean
+  matchedSkillName: string | null
+  similarity: number
+  required: boolean
+}
+
+export interface GapAnalysis {
+  score: number
+  totalRequiredSkills: number
+  matchedRequiredSkills: number
+  missedRequiredSkills: number
+  analyzeAt: string
+  matchedSkills: SkillMatch[]
+  missingSkills: SkillMatch[]
+}
