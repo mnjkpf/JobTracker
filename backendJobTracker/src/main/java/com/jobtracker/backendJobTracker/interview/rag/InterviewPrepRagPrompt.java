@@ -1,6 +1,7 @@
 package com.jobtracker.backendJobTracker.interview.rag;
 
 import java.util.List;
+import java.util.Locale;
 
 import com.jobtracker.backendJobTracker.interview.notes.dto.SimilarInterviewNote;
 
@@ -31,7 +32,7 @@ public final class InterviewPrepRagPrompt {
         StringBuilder sb = new StringBuilder();
         notes.stream().limit(MAX_NOTES_IN_PROMPT).forEach(note -> {
             sb.append("[Type: ").append(note.getNoteType())
-                    .append(", relevance: ").append(String.format("%.2f", note.getSimilarity()))
+                    .append(", relevance: ").append(String.format(Locale.US, "%.2f", note.getSimilarity()))
                     .append("]\n");
             sb.append(note.getContent()).append("\n");
             sb.append("---\n");

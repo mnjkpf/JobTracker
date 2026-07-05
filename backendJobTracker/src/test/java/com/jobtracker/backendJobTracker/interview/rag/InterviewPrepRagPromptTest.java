@@ -60,11 +60,9 @@ class InterviewPrepRagPromptTest {
     void similarityFormat() {
         String out = InterviewPrepRagPrompt.formatPastNotes(List.of(
                 note(NoteType.PREP_NOTE, "x", 0.6154321)));
-        // ЗНАХІДКА (minor): prod використовує String.format("%.2f", ...) із default
-        // locale → на UK/PL машині кома ("0,62"), а не крапка. Тест locale-стійкий:
-        // звіряємось з тим самим форматуванням, перевіряючи лише округлення.
-        String expected = String.format("%.2f", 0.6154321);
-        assertThat(out).contains(expected).doesNotContain("0.6154321");
+        // prod форматує через Locale.US → завжди крапка "0.62", детерміновано
+        // (не залежить від locale машини). Округлення до 2 знаків.
+        assertThat(out).contains("0.62").doesNotContain("0.6154321");
     }
 
     @Test
