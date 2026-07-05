@@ -1,5 +1,6 @@
 import { useDraggable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
+import { useNavigate } from 'react-router-dom'
 import { ExternalLink, MapPin, Trash2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
@@ -35,6 +36,7 @@ export function ApplicationCard({ application, onDelete }: Props) {
     id: application.id,
   })
   const salary = salaryText(application)
+  const navigate = useNavigate()
 
   return (
     <div
@@ -42,6 +44,7 @@ export function ApplicationCard({ application, onDelete }: Props) {
       style={{ transform: CSS.Translate.toString(transform), zIndex: isDragging ? 50 : undefined }}
       {...listeners}
       {...attributes}
+      onClick={() => navigate(`/applications/${application.id}`)}
       className={cn(
         'group relative touch-none cursor-grab rounded-md border border-slate-200 bg-white p-3 shadow-sm transition-shadow hover:shadow-md active:cursor-grabbing',
         isDragging && 'opacity-60 shadow-lg',
@@ -54,6 +57,7 @@ export function ApplicationCard({ application, onDelete }: Props) {
           target="_blank"
           rel="noreferrer"
           onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
           className="mt-0.5 shrink-0 text-slate-400 hover:text-slate-700"
           title="Open job posting"
         >
@@ -89,7 +93,10 @@ export function ApplicationCard({ application, onDelete }: Props) {
         <button
           type="button"
           onPointerDown={(e) => e.stopPropagation()}
-          onClick={() => onDelete(application.id)}
+          onClick={(e) => {
+            e.stopPropagation()
+            onDelete(application.id)
+          }}
           className="text-slate-300 opacity-0 transition-opacity hover:text-red-500 group-hover:opacity-100"
           title="Delete application"
         >
