@@ -12,6 +12,7 @@ import com.jobtracker.backendJobTracker.application.dto.CreateApplicationRequest
 
 @Mapper(componentModel = "spring")
 public interface ApplicationMapper {
+    @Mapping(target = "companyName", source = "company.name")
     ApplicationResponse toResponse(Application application);
 
     // companyName беремо з company.name (LAZY, але list() читає у read-only транзакції).
