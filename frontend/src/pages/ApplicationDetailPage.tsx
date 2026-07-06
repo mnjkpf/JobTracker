@@ -16,6 +16,8 @@ import { useApplication, useDeleteApplication } from '@/features/applications/ho
 import { STATUS_META } from '@/features/applications/statusMeta'
 import { OverviewTab } from '@/features/applications/ApplicationDetail/OverviewTab'
 import { GapAnalysisTab } from '@/features/applications/ApplicationDetail/GapAnalysisTab'
+import { CoverLettersTab } from '@/features/applications/ApplicationDetail/CoverLettersTab'
+import { TailoredCvsTab } from '@/features/applications/ApplicationDetail/TailoredCvsTab'
 import { ComingSoonTab } from '@/features/applications/ApplicationDetail/ComingSoonTab'
 import { EditApplicationDialog } from '@/features/applications/ApplicationDetail/EditApplicationDialog'
 
@@ -117,10 +119,10 @@ export default function ApplicationDetailPage() {
                   <GapAnalysisTab applicationId={app.id} />
                 </TabsContent>
                 <TabsContent value="cover-letter">
-                  <ComingSoonTab feature="Cover letters" />
+                  <CoverLettersTab applicationId={app.id} />
                 </TabsContent>
                 <TabsContent value="tailored-cv">
-                  <ComingSoonTab feature="Tailored CVs" />
+                  <TailoredCvsTab applicationId={app.id} />
                 </TabsContent>
                 <TabsContent value="interview-prep">
                   <ComingSoonTab feature="Interview prep" />
