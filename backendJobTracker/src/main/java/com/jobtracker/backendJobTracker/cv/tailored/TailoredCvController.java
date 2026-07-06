@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.jobtracker.backendJobTracker.auth.CustomUserDetails;
+import com.jobtracker.backendJobTracker.cv.tailored.ats.AtsScoreResponse;
+import com.jobtracker.backendJobTracker.cv.tailored.ats.AtsScoringService;
 import com.jobtracker.backendJobTracker.cv.tailored.dto.GenerateTailoredCvRequest;
 import com.jobtracker.backendJobTracker.cv.tailored.dto.TailoredCvResponse;
 import com.jobtracker.backendJobTracker.cv.tailored.dto.TailoredCvSummaryResponse;
@@ -31,6 +33,7 @@ public class TailoredCvController {
  
     private final TailoredCvService tailoredCvService;
     private final DocxExporter docxExporter;
+    private final AtsScoringService atsScoringService;
     
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -66,6 +69,14 @@ public class TailoredCvController {
             @PathVariable UUID appId,
             @PathVariable UUID tcvId) {
         tailoredCvService.delete(principal.user().getId(), tcvId);
+    }
+
+    @GetMapping("/{tcvId}/ats-score")
+    public AtsScoreResponse atsScore(
+            @AuthenticationPrincipal CustomUserDetails principal,
+            @PathVariable UUID appId,
+            @PathVariable UUID tcvId) {
+        return atsScoringService.score(principal.user().getId(), tcvId);
     }
 
     @GetMapping("/{tcvId}/download")
