@@ -18,7 +18,7 @@ import { OverviewTab } from '@/features/applications/ApplicationDetail/OverviewT
 import { GapAnalysisTab } from '@/features/applications/ApplicationDetail/GapAnalysisTab'
 import { CoverLettersTab } from '@/features/applications/ApplicationDetail/CoverLettersTab'
 import { TailoredCvsTab } from '@/features/applications/ApplicationDetail/TailoredCvsTab'
-import { ComingSoonTab } from '@/features/applications/ApplicationDetail/ComingSoonTab'
+import { InterviewPrepTab } from '@/features/applications/ApplicationDetail/InterviewPrepTab'
 import { EditApplicationDialog } from '@/features/applications/ApplicationDetail/EditApplicationDialog'
 
 function HeaderSkeleton() {
@@ -125,7 +125,7 @@ export default function ApplicationDetailPage() {
                   <TailoredCvsTab applicationId={app.id} />
                 </TabsContent>
                 <TabsContent value="interview-prep">
-                  <ComingSoonTab feature="Interview prep" />
+                  <InterviewPrepTab applicationId={app.id} status={app.status} />
                 </TabsContent>
               </Tabs>
             </div>
