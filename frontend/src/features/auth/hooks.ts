@@ -10,12 +10,21 @@ function persistSession(response: AuthResponse, navigate: NavigateFunction) {
   navigate('/')
 }
 
+// Distinguishes "backend unreachable" from an actual API error — a static
+// message here previously always blamed "email already in use", even when
+// the real cause was the backend being down (net::ERR_CONNECTION_REFUSED).
+function errorMessage(error: unknown, fallback: string): string {
+  const e = error as { response?: { data?: { detail?: string } } }
+  if (!e?.response) return 'Cannot reach the server. Is the backend running?'
+  return e.response.data?.detail ?? fallback
+}
+
 export const useLogin = () => {
   const navigate = useNavigate()
   return useMutation({
     mutationFn: (data: LoginRequest) => authApi.login(data),
     onSuccess: (response) => persistSession(response, navigate),
-    onError: () => toast.error('Login failed — check your email and password.'),
+    onError: (error) => toast.error(errorMessage(error, 'Login failed — check your email and password.')),
   })
 }
 
@@ -24,6 +33,6 @@ export const useRegister = () => {
   return useMutation({
     mutationFn: (data: RegisterRequest) => authApi.register(data),
     onSuccess: (response) => persistSession(response, navigate),
-    onError: () => toast.error('Registration failed — that email may already be in use.'),
+    onError: (error) => toast.error(errorMessage(error, 'Registration failed. Please try again.')),
   })
 }
