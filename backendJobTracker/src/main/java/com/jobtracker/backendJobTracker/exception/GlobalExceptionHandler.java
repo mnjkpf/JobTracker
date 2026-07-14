@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -200,6 +201,27 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
     }
 
+
+    // Malformed JSON body (незакрита дужка, invalid UTF-8 тощо) — Spring кидає
+    // HttpMessageNotReadableException при десеріалізації @RequestBody, до валідації полів.
+    // Раніше теж провалювалось у catch-all -> 500.
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ProblemDetail> handleMessageNotReadable(
+            HttpMessageNotReadableException ex, HttpServletRequest request) {
+        log.warn("Malformed request body: {} (path={})", ex.getMessage(), request.getRequestURI());
+
+        // Не показуємо ex.getMessage() клієнту — це internal Jackson parse error,
+        // може leakувати структуру DTO.
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.BAD_REQUEST,
+                "Request body is malformed or missing");
+        problem.setTitle("Bad Request");
+        problem.setType(URI.create("https://jobtracker.local/errors/MALFORMED_REQUEST"));
+        problem.setInstance(URI.create(request.getRequestURI()));
+        problem.setProperty("errorCode", "MALFORMED_REQUEST");
+        problem.setProperty("timestamp", Instant.now().toString());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
+    }
 
     @ExceptionHandler(EmailSendException.class)
     public ResponseEntity<ProblemDetail> handleEmailSendException(
