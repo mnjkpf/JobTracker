@@ -5,7 +5,10 @@ import LoginPage from '@/pages/LoginPage'
 import RegisterPage from '@/pages/RegisterPage'
 import DashboardPage from '@/pages/DashboardPage'
 import ApplicationDetailPage from '@/pages/ApplicationDetailPage'
+import CvEditorPage from '@/pages/CvEditorPage'
+import StatisticsPage from '@/pages/StatisticsPage'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
+import { AppLayout } from '@/layouts/AppLayout'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -24,21 +27,17 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route
-            path="/"
             element={
               <ProtectedRoute>
-                <DashboardPage />
+                <AppLayout />
               </ProtectedRoute>
             }
-          />
-          <Route
-            path="/applications/:id"
-            element={
-              <ProtectedRoute>
-                <ApplicationDetailPage />
-              </ProtectedRoute>
-            }
-          />
+          >
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="/applications/:id" element={<ApplicationDetailPage />} />
+            <Route path="/cv" element={<CvEditorPage />} />
+            <Route path="/statistics" element={<StatisticsPage />} />
+          </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

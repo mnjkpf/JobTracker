@@ -56,8 +56,8 @@ export default function ApplicationDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-5xl px-6 py-6">
+    <div>
+      <div className="mx-auto max-w-5xl">
         <button
           onClick={() => navigate('/')}
           className="mb-4 inline-flex items-center gap-1 text-sm text-slate-500 transition-colors hover:text-slate-900"
