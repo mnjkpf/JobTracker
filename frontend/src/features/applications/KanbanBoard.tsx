@@ -2,14 +2,26 @@ import { useMemo, useState } from 'react'
 import { DndContext, PointerSensor, closestCorners, useSensor, useSensors } from '@dnd-kit/core'
 import type { DragEndEvent } from '@dnd-kit/core'
 import { toast } from 'sonner'
-import { Plus, RotateCw } from 'lucide-react'
+import { Plus, RotateCw, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { cn } from '@/lib/utils'
+import { useDebounce } from '@/lib/hooks/useDebounce'
 import { KanbanColumn } from './KanbanColumn'
 import { CreateApplicationModal } from './CreateApplicationModal'
 import { KANBAN_COLUMNS } from './statusMeta'
 import { useApplications, useDeleteApplication, useUpdateStatus } from './hooks'
 import { isValidTransition } from './types'
 import type { Application, ApplicationStatus } from './types'
+
+type FilterKey = 'all' | 'active' | 'interviews' | 'rejected'
+
+const FILTERS: { key: FilterKey; label: string; statuses?: ApplicationStatus[] }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'active', label: 'Active only', statuses: ['APPLIED', 'SCREENING', 'INTERVIEW', 'FINAL'] },
+  { key: 'interviews', label: 'Interviews', statuses: ['INTERVIEW', 'FINAL'] },
+  { key: 'rejected', label: 'Rejected', statuses: ['REJECTED'] },
+]
 
 function BoardSkeleton() {
   return (
@@ -54,8 +66,27 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
   )
 }
 
+function NoMatchesState() {
+  return (
+    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white py-20 text-center">
+      <h3 className="text-lg font-semibold text-slate-900">No matches</h3>
+      <p className="mt-1 max-w-sm text-sm text-slate-500">
+        No applications match your search or filter. Try adjusting them.
+      </p>
+    </div>
+  )
+}
+
 export function KanbanBoard() {
-  const { data, isLoading, isError, isFetching, refetch } = useApplications()
+  const [search, setSearch] = useState('')
+  const [filter, setFilter] = useState<FilterKey>('all')
+  const debouncedSearch = useDebounce(search, 300)
+  const activeFilter = FILTERS.find((f) => f.key === filter)
+
+  const { data, isLoading, isError, isFetching, refetch } = useApplications({
+    q: debouncedSearch || undefined,
+    statuses: activeFilter?.statuses,
+  })
   const updateStatus = useUpdateStatus()
   const deleteApp = useDeleteApplication()
   const [createOpen, setCreateOpen] = useState(false)
@@ -63,6 +94,7 @@ export function KanbanBoard() {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
 
   const applications = data?.content ?? []
+  const isFiltered = debouncedSearch.length > 0 || filter !== 'all'
 
   const byStatus = useMemo(() => {
     const map = new Map<ApplicationStatus, Application[]>()
@@ -91,15 +123,49 @@ export function KanbanBoard() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <h2 className="text-2xl font-bold tracking-tight text-slate-900">Applications</h2>
           {isFetching && !isLoading && <RotateCw className="h-4 w-4 animate-spin text-slate-400" />}
         </div>
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="h-4 w-4" />
-          New Application
-        </Button>
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Input
+              // Backend ApplicationFilters.q only searches name + description, not companyName.
+              placeholder="Search by position or description..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-64 pl-8"
+            />
+          </div>
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus className="h-4 w-4" />
+            New Application
+          </Button>
+        </div>
+      </div>
+
+      <div className="mb-6 flex items-center gap-2">
+        <span className="text-sm text-slate-500">Filters:</span>
+        {FILTERS.map((f) => (
+          <button
+            key={f.key}
+            type="button"
+            onClick={() => setFilter(f.key)}
+            className={cn(
+              'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
+              filter === f.key
+                ? 'border-slate-900 bg-slate-900 text-white'
+                : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100',
+            )}
+          >
+            {f.label}
+          </button>
+        ))}
+        {!isLoading && !isError && (
+          <span className="ml-1 text-xs text-slate-400">{data?.totalElements ?? 0} applications</span>
+        )}
       </div>
 
       {isLoading ? (
@@ -107,7 +173,7 @@ export function KanbanBoard() {
       ) : isError ? (
         <ErrorBanner onRetry={() => refetch()} />
       ) : applications.length === 0 ? (
-        <EmptyState onCreate={() => setCreateOpen(true)} />
+        isFiltered ? <NoMatchesState /> : <EmptyState onCreate={() => setCreateOpen(true)} />
       ) : (
         <DndContext
           sensors={sensors}

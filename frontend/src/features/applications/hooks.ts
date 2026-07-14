@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { applicationsApi, gapAnalysisApi } from './api'
+import { applicationsApi, gapAnalysisApi, type ListParams } from './api'
 import type {
   Application,
   CreateApplicationRequest,
@@ -21,10 +21,11 @@ function errorMessage(error: unknown, fallback: string): string {
   return e?.response?.data?.detail ?? fallback
 }
 
-export const useApplications = () => {
+export const useApplications = (filters: Pick<ListParams, 'q' | 'statuses'> = {}) => {
   return useQuery({
-    queryKey: APPLICATIONS_KEY,
-    queryFn: () => applicationsApi.list({ page: 0, size: 100, sort: 'updatedAt,desc' }),
+    queryKey: [...APPLICATIONS_KEY, filters],
+    queryFn: () =>
+      applicationsApi.list({ page: 0, size: 100, sort: 'updatedAt,desc', ...filters }),
   })
 }
 

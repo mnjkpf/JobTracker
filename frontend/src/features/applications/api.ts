@@ -19,8 +19,17 @@ export interface ListParams {
 }
 
 export const applicationsApi = {
-  list: (params: ListParams = {}) =>
-    apiClient.get<Page<Application>>('/applications', { params }).then((r) => r.data),
+  list: (params: ListParams = {}) => {
+    // Backend binds List<ApplicationStatus> via a single comma-separated param
+    // (?statuses=APPLIED,SCREENING) rather than repeated keys — serialize explicitly
+    // so we don't depend on axios's default array-param encoding.
+    const { statuses, ...rest } = params
+    return apiClient
+      .get<Page<Application>>('/applications', {
+        params: { ...rest, statuses: statuses?.length ? statuses.join(',') : undefined },
+      })
+      .then((r) => r.data)
+  },
 
   getById: (id: string) =>
     apiClient.get<Application>(`/applications/${id}`).then((r) => r.data),
