@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # =====================================================
 # Місце: backendJobTracker/Dockerfile
 # =====================================================
@@ -28,27 +29,32 @@ COPY pom.xml .
 # На Windows mvnw може втратити executable bit при git clone — фіксимо
 RUN chmod +x mvnw
 
-# Pre-download залежностей
-RUN ./mvnw -B dependency:go-offline
+# Pre-download залежностей. Cache mount переживає окремі docker build
+# запуски — retry після мережевого збою не тягне все з нуля.
+RUN --mount=type=cache,target=/root/.m2/repository ./mvnw -B dependency:go-offline
 
 # Тепер source. Зміни в src/ НЕ invalidate'нуть deps layer вище.
 COPY src ./src
 
 # Package. Tests у CI окремо, тут skip.
 # -B = batch mode (без інтерактивних промптів)
-RUN ./mvnw -B clean package -DskipTests \
+RUN --mount=type=cache,target=/root/.m2/repository ./mvnw -B clean package -DskipTests \
     && cp target/*.jar app.jar
 
 # ============= Stage 2: Extract layered JAR =============
 FROM eclipse-temurin:21-jre-alpine AS extractor
 
-WORKDIR /extracted
+WORKDIR /builder
 
 COPY --from=builder /build/app.jar app.jar
 
 # Spring Boot 3.2+: `tools` jarmode (раніше було `layertools` — застаріле).
-# Layered extraction → Docker кешує deps окремо від application bytes.
-RUN java -Djarmode=tools -jar app.jar extract --layers --destination .
+# destination має бути окремою порожньою підпапкою — сам app.jar лежить
+# поруч у /builder, і extract відмовляється писати в непорожню директорію.
+# --launcher обов'язковий: без нього tools jarmode не витягує loader-класи
+# (org.springframework.boot.loader.*) в окремий шар, а пакує app у thin jar
+# з Class-Path у lib/ — несумісно з ENTRYPOINT через JarLauncher нижче.
+RUN java -Djarmode=tools -jar app.jar extract --layers --launcher --destination extracted
 
 # ============= Stage 3: Runtime =============
 FROM eclipse-temurin:21-jre-alpine
@@ -61,10 +67,10 @@ WORKDIR /app
 
 # COPY у порядку від найрідше-змінних до найчастіше-змінних.
 # При зміні коду тільки останній layer (application) перебудовується.
-COPY --from=extractor --chown=spring:spring /extracted/dependencies/ ./
-COPY --from=extractor --chown=spring:spring /extracted/spring-boot-loader/ ./
-COPY --from=extractor --chown=spring:spring /extracted/snapshot-dependencies/ ./
-COPY --from=extractor --chown=spring:spring /extracted/application/ ./
+COPY --from=extractor --chown=spring:spring /builder/extracted/dependencies/ ./
+COPY --from=extractor --chown=spring:spring /builder/extracted/spring-boot-loader/ ./
+COPY --from=extractor --chown=spring:spring /builder/extracted/snapshot-dependencies/ ./
+COPY --from=extractor --chown=spring:spring /builder/extracted/application/ ./
 
 USER spring
 
@@ -91,7 +97,7 @@ ENV JAVA_TOOL_OPTIONS="\
 # Healthcheck через actuator. Alpine busybox містить wget з --spider.
 # start-period 60s — Spring Boot стартує не миттєво (Flyway, JPA init).
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
-    CMD wget --quiet --tries=1 --spider http://localhost:8080/actuator/health || exit 1
+    CMD wget --quiet --tries=1 --spider http://localhost:${PORT:-8080}/actuator/health || exit 1
 
 # Spring Boot 3.2+ launcher: org.springframework.boot.loader.launch.JarLauncher
 # (старий шлях org.springframework.boot.loader.JarLauncher не працює в 3.2+).
