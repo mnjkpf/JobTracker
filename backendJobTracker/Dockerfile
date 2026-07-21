@@ -29,16 +29,15 @@ COPY pom.xml .
 # На Windows mvnw може втратити executable bit при git clone — фіксимо
 RUN chmod +x mvnw
 
-# Pre-download залежностей. Cache mount переживає окремі docker build
-# запуски — retry після мережевого збою не тягне все з нуля.
-RUN --mount=type=cache,id=maven-repo,target=/root/.m2/repository ./mvnw -B dependency:go-offline
+# Pre-download залежностей.
+RUN ./mvnw -B dependency:go-offline
 
 # Тепер source. Зміни в src/ НЕ invalidate'нуть deps layer вище.
 COPY src ./src
 
 # Package. Tests у CI окремо, тут skip.
 # -B = batch mode (без інтерактивних промптів)
-RUN --mount=type=cache,id=maven-repo,target=/root/.m2/repository ./mvnw -B clean package -DskipTests \
+RUN ./mvnw -B clean package -DskipTests \
     && cp target/*.jar app.jar
 
 # ============= Stage 2: Extract layered JAR =============
