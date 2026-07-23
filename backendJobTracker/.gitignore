@@ -1,0 +1,116 @@
+HELP.md
+target/
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+# =====================================================
+# Місце: <repo-root>/.gitignore
+# =====================================================
+
+# === Java / Maven ===
+backend/target/
+backend/**/target/
+backend/**/*.class
+backend/**/*.jar
+backend/**/*.war
+backend/**/HELP.md
+!backend/.mvn/wrapper/maven-wrapper.jar
+backend/.mvn/wrapper/maven-wrapper.properties.bak
+
+# === IDE ===
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+.vscode/
+*.swp
+*.swo
+*.code-workspace
+.factorypath
+
+# === OS ===
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# === Логи ===
+*.log
+logs/
+backend/logs/
+
+# === Environment / secrets ===
+.env
+.env.local
+.env.*.local
+!.env.example
+*.pem
+*.key
+*.p12
+secrets/
+
+# === Node / Frontend ===
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.vite/
+frontend/coverage/
+frontend/.eslintcache
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/pnpm-debug.log*
+
+# === Docker (якщо хтось локально маунтить volume) ===
+docker-volumes/
+.docker-data/
+
+# === Test reports ===
+**/test-results/
+**/jacoco-report/
+**/surefire-reports/
+**/failsafe-reports/
+
+# === Generated ===
+backend/src/main/generated/
+backend/src/main/generated-sources/
+
+# === MapStruct / Lombok generated (на всяк випадок) ===
+**/delombok/
+
+# === Tooling-specific ===
+.cache/
+.tmp/
+*.tmp

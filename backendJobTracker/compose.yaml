@@ -1,0 +1,116 @@
+# =====================================================
+# Місце: <repo-root>/docker-compose.yml
+# =====================================================
+# Інфраструктура + опціонально backend для локальної розробки.
+#
+# Top-level `name:` фіксує project name → усі дефолтні імена
+# (network, anonymous volumes) отримують префікс `jobtracker_`,
+# незалежно від назви теки проекту.
+
+name: jobtracker
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg18
+    container_name: jobtracker-postgres
+    environment:
+      POSTGRES_USER: jobtracker
+      POSTGRES_PASSWORD: jobtracker_dev_password
+      POSTGRES_DB: jobtracker
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C.UTF-8"
+    ports:
+      - "5440:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jobtracker -d jobtracker"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+    labels:
+      org.springframework.boot.service-connection: postgres
+
+  redis:
+    image: redis:7-alpine
+    container_name: jobtracker-redis
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --maxmemory
+      - "256mb"
+      - --maxmemory-policy
+      - "allkeys-lru"
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    labels:
+      org.springframework.boot.service-connection: redis
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: jobtracker-mailpit
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    environment:
+      MP_MAX_MESSAGES: 5000
+      MP_DATABASE: /data/mailpit.db
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    volumes:
+      - mailpit_data:/data
+    restart: unless-stopped
+
+  # Backend (опціонально — для production-like тестування).
+  # У повсякденній розробці запускай через `./mvnw spring-boot:run`,
+  # не через docker compose — DevTools hot reload в контейнері не працює.
+  backendJobTracker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jobtracker-backend          # ← КРИТИЧНО: явне ім'я
+    image: jobtracker/backendJobTracker:latest            # ← явне ім'я image, не дефолтне "backend"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      # У контейнері localhost ≠ host. Використовуємо service names (не container names).
+      # У контейнерах postgres слухає 5432, не 5440 — host port mapping тут не діє.
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/jobtracker
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_MAIL_HOST: mailpit
+      SPRING_MAIL_PORT: 1025
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-not-set}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-not-set}
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-CHANGE-ME-min-256-bits-long-or-jjwt-will-complain}
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    # Опціонально: вимкни backend за замовчуванням, запускай тільки за потреби
+    # через `docker compose --profile full up -d`
+    profiles:
+      - full
+
+volumes:
+  postgres_data:
+    name: jobtracker_postgres_data
+  redis_data:
+    name: jobtracker_redis_data
+  mailpit_data:
+    name: jobtracker_mailpit_data

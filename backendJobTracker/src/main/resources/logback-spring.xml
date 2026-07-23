@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Місце: backendJobTracker/src/main/resources/logback-spring.xml
+
+    Logging стратегія:
+    - dev/local/default → human-readable console з MDC полями
+    - test → тихий WARN root з DEBUG для com.jobtracker
+    - prod → структуровані JSON логи на stdout (для Loki/ELK/etc)
+-->
+<configuration>
+    <!-- Стандартні Spring Boot logback include'и -->
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <!-- Властивості з Spring environment -->
+    <springProperty scope="context" name="appName" source="spring.application.name" defaultValue="job-tracker-backend"/>
+    <springProperty scope="context" name="appProfile" source="spring.profiles.active" defaultValue="default"/>
+
+    <!-- ===== Dev / local / default ===== -->
+    <springProfile name="dev | local | default">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <!-- Кольоровий формат з MDC (requestId, userId) -->
+                <pattern>%clr(%d{HH:mm:ss.SSS}){faint} %clr(%5p) %clr([%X{requestId:-}]){magenta} %clr([%X{userId:-}]){cyan} %clr(${PID}){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n%wEx</pattern>
+                <charset>UTF-8</charset>
+            </encoder>
+        </appender>
+
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+
+    <!-- ===== Test ===== -->
+    <springProfile name="test">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%d{HH:mm:ss.SSS} %-5level [%X{requestId:-}] %logger{36} - %msg%n</pattern>
+            </encoder>
+        </appender>
+
+        <root level="WARN">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+        <logger name="com.jobtracker" level="DEBUG"/>
+    </springProfile>
+
+    <!-- ===== Production: JSON на stdout ===== -->
+    <springProfile name="prod">
+        <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                <includeMdc>true</includeMdc>
+                <includeContext>false</includeContext>
+                <customFields>{"application":"${appName}","profile":"${appProfile}"}</customFields>
+                <fieldNames>
+                    <timestamp>timestamp</timestamp>
+                    <message>message</message>
+                    <thread>thread</thread>
+                    <logger>logger</logger>
+                    <level>level</level>
+                    <stackTrace>stack_trace</stackTrace>
+                </fieldNames>
+                <!-- MDC поля піднімаються в top-level JSON, не в окремий "mdc" wrapper -->
+                <mdcKeyFieldName>requestId=request_id</mdcKeyFieldName>
+                <mdcKeyFieldName>userId=user_id</mdcKeyFieldName>
+            </encoder>
+        </appender>
+
+        <root level="INFO">
+            <appender-ref ref="JSON_CONSOLE"/>
+        </root>
+
+        <!-- Application packages на DEBUG в prod — для діагностики; зміни на INFO якщо шумно -->
+        <logger name="com.jobtracker" level="INFO"/>
+    </springProfile>
+</configuration>
