@@ -1,7 +1,6 @@
 JobTracker
 
-AI-powered job application tracker with cross-interview learning through RAG. Built as a Junior Java Backend portfolio project targeting the Polish tech market.
-
+AI-powered job application tracker with cross-interview learning through RAG. 
 Live demo: job-tracker-six-flame.vercel.app
 
 Demo
