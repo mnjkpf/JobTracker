@@ -76,10 +76,19 @@ public class GapAnalysisService {
     /**
      * Лише matching — без LLM. Швидко. Працює якщо ApplicationSkills уже існують
      * (тобто runAnalysis викликали раніше).
+     * <p>
+     * Раніше цей метод при відсутніх ApplicationSkills мовчки повертав 200 з
+     * "вакуумним" результатом (score 1.0, порожні matched/missing) — невідрізнимим
+     * від легітимного аналізу вакансії без жодного скіла. Явна перевірка нижче
+     * дає 404, щоб клієнт міг надійно розрізнити "ще не аналізували" від "проаналізували".
      */
     public GapAnalysisResponse getAnalysis(UUID userId, UUID applicationId) {
         Application app = fetchOwned(userId, applicationId);
         ensureUserHasCv(userId);
+        if (!applicationSkillRepository.existsByApplicationId(app.getId())) {
+            throw new ResourceNotFoundException(
+                    "Gap analysis has not been run for application: " + applicationId);
+        }
         return computeAnalysis(userId, app);
     }
  

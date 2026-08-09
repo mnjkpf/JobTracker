@@ -32,6 +32,7 @@ import com.jobtracker.backendJobTracker.application.gap.dto.GapAnalysisResponse;
 import com.jobtracker.backendJobTracker.cv.models.Skill;
 import com.jobtracker.backendJobTracker.cv.repo.MasterCvRepository;
 import com.jobtracker.backendJobTracker.exception.BusinessRuleException;
+import com.jobtracker.backendJobTracker.exception.ResourceNotFoundException;
 
 /**
  * Unit-тести для {@link GapAnalysisService} з Mockito.
@@ -141,6 +142,7 @@ class GapAnalysisServiceTest {
         ApplicationSkill reqMatched = jobSkill("java", true);     // matched
         ApplicationSkill reqMissing = jobSkill("spring", true);   // missing (sim < 0.75)
         ApplicationSkill niceMatched = jobSkill("docker", false); // matched, але nice-to-have
+        when(applicationSkillRepository.existsByApplicationId(appId)).thenReturn(true);
         when(applicationSkillRepository.findByApplicationId(appId))
                 .thenReturn(List.of(reqMatched, reqMissing, niceMatched));
 
@@ -169,6 +171,7 @@ class GapAnalysisServiceTest {
         when(masterCvRepository.existsByUserId(userId)).thenReturn(true);
 
         ApplicationSkill nice = jobSkill("docker", false);
+        when(applicationSkillRepository.existsByApplicationId(appId)).thenReturn(true);
         when(applicationSkillRepository.findByApplicationId(appId)).thenReturn(List.of(nice));
         stubMatchQuery(java.util.Map.of(nice.getSkill().getId(), 0.05));
 
@@ -179,6 +182,19 @@ class GapAnalysisServiceTest {
     }
 
     @Test
+    @DisplayName("getAnalysis: runAnalysis ще не викликали (немає ApplicationSkills) -> ResourceNotFoundException")
+    void getAnalysis_neverRun_throwsNotFound() {
+        ownedApp();
+        when(masterCvRepository.existsByUserId(userId)).thenReturn(true);
+        when(applicationSkillRepository.existsByApplicationId(appId)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.getAnalysis(userId, appId))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        verify(applicationSkillRepository, never()).findByApplicationId(any());
+    }
+
+    @Test
     @DisplayName("matching: similarity >= 0.75 -> matched; < 0.75 -> missing")
     void matching_thresholdBoundary() {
         ownedApp();
@@ -186,6 +202,7 @@ class GapAnalysisServiceTest {
 
         ApplicationSkill atThreshold = jobSkill("java", true);   // distance 0.25 -> sim 0.75 -> matched
         ApplicationSkill belowThreshold = jobSkill("go", true);  // distance 0.26 -> sim 0.74 -> missing
+        when(applicationSkillRepository.existsByApplicationId(appId)).thenReturn(true);
         when(applicationSkillRepository.findByApplicationId(appId))
                 .thenReturn(List.of(atThreshold, belowThreshold));
         stubMatchQuery(java.util.Map.of(
