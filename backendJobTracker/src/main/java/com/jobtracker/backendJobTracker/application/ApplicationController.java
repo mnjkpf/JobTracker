@@ -135,7 +135,8 @@ public class ApplicationController {
      * Refresh результату без повторної LLM-екстракції. Швидко — лише pgvector
      * similarity проти збережених ApplicationSkills.
      * <p>
-     * 422 (BusinessRuleException) якщо нема CV або ще не запускав runAnalysis.
+     * 422 (BusinessRuleException) якщо нема CV. 404 (ResourceNotFoundException)
+     * якщо ще не викликали POST /gap-analysis для цієї заявки.
      */
     @GetMapping("/{id}/gap-analysis")
     public GapAnalysisResponse getGapAnalysis(

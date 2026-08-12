@@ -8,6 +8,7 @@ import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
@@ -137,6 +138,27 @@ public class GlobalExceptionHandler {
     }
 
     
+
+    // DB constraint violation (NOT NULL, CHECK, unique, FK) that slipped past our own
+    // validation — e.g. LLM-generated content saved with a field our schema still
+    // requires. Previously fell through to the generic 500 catch-all below, which
+    // logs only "Unexpected error" with no hint it was a DB constraint. This handler
+    // keeps the full exception (with the offending SQL constraint name) in the logs
+    // while giving the client an actionable, non-leaky message.
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ProblemDetail> handleDataIntegrityViolationException(
+            DataIntegrityViolationException ex, HttpServletRequest request) {
+        log.error("Data integrity violation (path={}): {}", request.getRequestURI(), ex.getMessage(), ex);
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.UNPROCESSABLE_ENTITY,
+                "Could not save the generated result — some required data was missing or invalid.");
+        problem.setTitle("Data Integrity Violation");
+        problem.setType(URI.create("https://jobtracker.local/errors/DATA_INTEGRITY_VIOLATION"));
+        problem.setInstance(URI.create(request.getRequestURI()));
+        problem.setProperty("errorCode", "DATA_INTEGRITY_VIOLATION");
+        problem.setProperty("timestamp", Instant.now().toString());
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(problem);
+    }
 
     @ExceptionHandler(CvExtractionException.class)
     public ResponseEntity<ProblemDetail> handleCvExtractionException(

@@ -76,10 +76,29 @@ public class GapAnalysisService {
     /**
      * Лише matching — без LLM. Швидко. Працює якщо ApplicationSkills уже існують
      * (тобто runAnalysis викликали раніше).
+     * <p>
+     * Раніше цей метод при відсутніх ApplicationSkills мовчки повертав 200 з
+     * "вакуумним" результатом (score 1.0, порожні matched/missing) — невідрізнимим
+     * від легітимного аналізу вакансії без жодного скіла. Явна перевірка нижче
+     * дає 404, щоб клієнт міг надійно розрізнити "ще не аналізували" від "проаналізували".
+     * <p>
+     * {@code @Transactional} тут обов'язковий: без відкритої Hibernate-сесії
+     * {@code findBestCvMatch} падає з {@code LazyInitializationException} на
+     * {@code jobSkill.getSkill().getName()} (ApplicationSkill.skill — lazy
+     * {@code @ManyToOne}), щойно ApplicationSkills реально існують — тобто
+     * САМЕ тоді, коли аналіз раніше вже запускали. Це і був справжній
+     * механізм "результат зникає при повторному відкритті": POST/runAnalysis
+     * працював (сам був @Transactional), а GET без транзакції падав у 500
+     * на будь-якому непорожньому результаті.
      */
+    @Transactional(readOnly = true)
     public GapAnalysisResponse getAnalysis(UUID userId, UUID applicationId) {
         Application app = fetchOwned(userId, applicationId);
         ensureUserHasCv(userId);
+        if (!applicationSkillRepository.existsByApplicationId(app.getId())) {
+            throw new ResourceNotFoundException(
+                    "Gap analysis has not been run for application: " + applicationId);
+        }
         return computeAnalysis(userId, app);
     }
  

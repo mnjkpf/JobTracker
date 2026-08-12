@@ -148,11 +148,24 @@ export function GapAnalysisTab({ applicationId }: { applicationId: string }) {
 
   const data = query.data
   const errStatus = (query.error as { response?: { status?: number } } | null)?.response?.status
-  const notAnalyzed =
-    !!query.error || !data || (data.matchedSkills.length === 0 && data.missingSkills.length === 0)
 
-  if (notAnalyzed) {
+  // 404 = analysis never run for this application, 422 = no CV yet — both are
+  // expected "nothing to show" states, not failures.
+  if (errStatus === 404 || errStatus === 422) {
     return <RunCta onRun={() => run.mutate()} noCv={errStatus === 422} />
+  }
+
+  if (query.error || !data) {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-red-300 bg-red-50 py-16 text-center">
+        <AlertCircle className="mb-3 h-8 w-8 text-red-400" />
+        <h3 className="text-lg font-semibold text-slate-900">Couldn't load gap analysis</h3>
+        <p className="mt-1 max-w-md text-sm text-slate-500">Something went wrong. Please try again.</p>
+        <Button className="mt-4" variant="outline" onClick={() => query.refetch()}>
+          Try again
+        </Button>
+      </div>
+    )
   }
 
   return <Results data={data} onReanalyze={() => run.mutate()} reanalyzing={run.isPending} />
