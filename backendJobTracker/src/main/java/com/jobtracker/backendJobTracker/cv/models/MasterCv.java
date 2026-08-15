@@ -45,6 +45,7 @@ public class MasterCv {
     private String fullName;
  
     /** Короткий tagline під ім'ям: "Junior Java Developer", "Software Engineer". */
+    @Column(columnDefinition = "TEXT")
     private String headline;
  
     private String email;
