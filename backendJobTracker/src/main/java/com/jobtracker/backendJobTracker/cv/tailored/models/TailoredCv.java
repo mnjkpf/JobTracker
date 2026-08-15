@@ -52,6 +52,7 @@ public class TailoredCv {
     @Column(name = "full_name")
     private String fullName;
  
+    @Column(columnDefinition = "TEXT")
     private String headline;
     private String email;
     private String phone;
