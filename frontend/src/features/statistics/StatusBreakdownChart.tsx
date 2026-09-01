@@ -1,7 +1,5 @@
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { STATUS_META } from '@/features/applications/statusMeta'
-import { STATUS_HEX } from './statusColors'
 import type { Statistics } from './hooks'
 
 interface Props {
@@ -11,7 +9,7 @@ interface Props {
 export function StatusBreakdownChart({ byStatus }: Props) {
   const data = byStatus
     .filter((s) => s.count > 0)
-    .map((s) => ({ status: s.status, label: STATUS_META[s.status].label, count: s.count }))
+    .map((s) => ({ id: s.id, label: s.name, count: s.count, color: s.color }))
 
   return (
     <Card>
@@ -28,7 +26,7 @@ export function StatusBreakdownChart({ byStatus }: Props) {
               <YAxis
                 type="category"
                 dataKey="label"
-                width={80}
+                width={90}
                 tick={{ fontSize: 12, fill: '#334155' }}
                 axisLine={false}
                 tickLine={false}
@@ -39,7 +37,7 @@ export function StatusBreakdownChart({ byStatus }: Props) {
               />
               <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={20}>
                 {data.map((entry) => (
-                  <Cell key={entry.status} fill={STATUS_HEX[entry.status]} />
+                  <Cell key={entry.id} fill={entry.color} />
                 ))}
               </Bar>
             </BarChart>

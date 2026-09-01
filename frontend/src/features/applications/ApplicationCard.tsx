@@ -1,7 +1,7 @@
 import { useDraggable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import { useNavigate } from 'react-router-dom'
-import { ExternalLink, MapPin, Trash2 } from 'lucide-react'
+import { Archive, ExternalLink, MapPin } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import type { Application } from './types'
@@ -28,10 +28,10 @@ function salaryText(app: Application): string | null {
 
 interface Props {
   application: Application
-  onDelete: (id: string) => void
+  onArchive: (id: string) => void
 }
 
-export function ApplicationCard({ application, onDelete }: Props) {
+export function ApplicationCard({ application, onArchive }: Props) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: application.id,
   })
@@ -95,12 +95,12 @@ export function ApplicationCard({ application, onDelete }: Props) {
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => {
             e.stopPropagation()
-            onDelete(application.id)
+            onArchive(application.id)
           }}
-          className="text-slate-300 opacity-0 transition-opacity hover:text-red-500 group-hover:opacity-100"
-          title="Delete application"
+          className="text-slate-300 opacity-0 transition-opacity hover:text-slate-600 group-hover:opacity-100"
+          title="Move to archive"
         >
-          <Trash2 className="h-3.5 w-3.5" />
+          <Archive className="h-3.5 w-3.5" />
         </button>
       </div>
     </div>
