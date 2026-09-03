@@ -91,13 +91,7 @@ public class ApplicationController {
         return applicationService.getStatusHistory(principal.user().getId(), id);
     }
  
-    @DeleteMapping("/{id}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void archive(
-            @AuthenticationPrincipal CustomUserDetails principal,
-            @PathVariable UUID id) {
-        applicationService.archive(principal.user().getId(), id);
-    }
+
  
     // ─── URL-based parsing (3B) ─────────────────────────────────────
  
@@ -145,4 +139,30 @@ public class ApplicationController {
         return gapAnalysisService.getAnalysis(principal.user().getId(), id);
     }
 
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteApplication(
+            @AuthenticationPrincipal CustomUserDetails principal,
+            @PathVariable UUID id) {
+        applicationService.hardDelete(principal.user().getId(), id);
+    }
+
+    @PostMapping("/{id}/archive")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void archiveApplication(
+            @AuthenticationPrincipal CustomUserDetails principal,
+            @PathVariable UUID id) {
+        applicationService.archive(principal.user().getId(), id);
+    }
+
+
+    @PostMapping("/{id}/unarchive")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void unarchiveApplication(
+            @AuthenticationPrincipal CustomUserDetails principal,
+            @PathVariable UUID id) {
+        applicationService.unarchive(principal.user().getId(), id);
+    }
+    
 }

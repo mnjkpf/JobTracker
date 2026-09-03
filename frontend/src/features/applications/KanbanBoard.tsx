@@ -1,33 +1,26 @@
 import { useMemo, useState } from 'react'
 import { DndContext, PointerSensor, closestCorners, useSensor, useSensors } from '@dnd-kit/core'
 import type { DragEndEvent } from '@dnd-kit/core'
-import { toast } from 'sonner'
-import { Plus, RotateCw, Search } from 'lucide-react'
+import { Plus, RotateCw, Search, SlidersHorizontal } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { useDebounce } from '@/lib/hooks/useDebounce'
+import { useStatuses } from '@/features/statuses/hooks'
+import { StatusManagerDialog } from '@/features/statuses/StatusManagerDialog'
 import { KanbanColumn } from './KanbanColumn'
 import { CreateApplicationModal } from './CreateApplicationModal'
-import { KANBAN_COLUMNS } from './statusMeta'
-import { useApplications, useDeleteApplication, useUpdateStatus } from './hooks'
-import { isValidTransition } from './types'
-import type { Application, ApplicationStatus } from './types'
+import { ArchivedApplicationsList } from './ArchivedApplicationsList'
+import { useApplications, useArchiveApplication, useUpdateStatus } from './hooks'
+import type { Application } from './types'
 
-type FilterKey = 'all' | 'active' | 'interviews' | 'rejected'
-
-const FILTERS: { key: FilterKey; label: string; statuses?: ApplicationStatus[] }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'active', label: 'Active only', statuses: ['APPLIED', 'SCREENING', 'INTERVIEW', 'FINAL'] },
-  { key: 'interviews', label: 'Interviews', statuses: ['INTERVIEW', 'FINAL'] },
-  { key: 'rejected', label: 'Rejected', statuses: ['REJECTED'] },
-]
+type View = 'active' | 'archived'
 
 function BoardSkeleton() {
   return (
     <div className="flex gap-3 overflow-x-auto pb-4">
-      {KANBAN_COLUMNS.map((col) => (
-        <div key={col.status} className="w-72 shrink-0 rounded-lg bg-slate-100 p-2">
+      {Array.from({ length: 5 }).map((_, c) => (
+        <div key={c} className="w-72 shrink-0 rounded-lg bg-slate-100 p-2">
           <div className="mb-2 h-5 w-24 animate-pulse rounded bg-slate-200" />
           <div className="space-y-2">
             {[0, 1, 2].map((i) => (
@@ -71,7 +64,7 @@ function NoMatchesState() {
     <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white py-20 text-center">
       <h3 className="text-lg font-semibold text-slate-900">No matches</h3>
       <p className="mt-1 max-w-sm text-sm text-slate-500">
-        No applications match your search or filter. Try adjusting them.
+        No applications match your search. Try adjusting it.
       </p>
     </div>
   )
@@ -79,47 +72,49 @@ function NoMatchesState() {
 
 export function KanbanBoard() {
   const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState<FilterKey>('all')
+  const [view, setView] = useState<View>('active')
+  const [createOpen, setCreateOpen] = useState(false)
+  const [manageOpen, setManageOpen] = useState(false)
   const debouncedSearch = useDebounce(search, 300)
-  const activeFilter = FILTERS.find((f) => f.key === filter)
 
+  const statusesQuery = useStatuses()
   const { data, isLoading, isError, isFetching, refetch } = useApplications({
     q: debouncedSearch || undefined,
-    statuses: activeFilter?.statuses,
+    archived: view === 'archived' ? true : undefined,
   })
   const updateStatus = useUpdateStatus()
-  const deleteApp = useDeleteApplication()
-  const [createOpen, setCreateOpen] = useState(false)
+  const archiveApp = useArchiveApplication()
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
 
+  const columns = useMemo(
+    () => (statusesQuery.data ?? []).slice().sort((a, b) => a.position - b.position),
+    [statusesQuery.data],
+  )
   const applications = data?.content ?? []
-  const isFiltered = debouncedSearch.length > 0 || filter !== 'all'
+  const isSearching = debouncedSearch.length > 0
 
   const byStatus = useMemo(() => {
-    const map = new Map<ApplicationStatus, Application[]>()
-    for (const col of KANBAN_COLUMNS) map.set(col.status, [])
+    const map = new Map<string, Application[]>()
+    for (const col of columns) map.set(col.id, [])
     for (const app of applications) {
-      map.get(app.status)?.push(app)
+      if (map.has(app.status.id)) map.get(app.status.id)!.push(app)
     }
     return map
-  }, [applications])
+  }, [applications, columns])
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
     if (!over) return
     const app = applications.find((a) => a.id === String(active.id))
     if (!app) return
-
-    const target = String(over.id) as ApplicationStatus
-    if (app.status === target) return
-
-    if (!isValidTransition(app.status, target)) {
-      toast.error(`Cannot move from ${app.status} to ${target}`)
-      return
-    }
-    updateStatus.mutate({ id: app.id, data: { status: target } })
+    const targetStatusId = String(over.id)
+    if (app.status.id === targetStatusId) return
+    // Free movement — any column to any column.
+    updateStatus.mutate({ id: app.id, data: { statusId: targetStatusId } })
   }
+
+  const boardLoading = isLoading || statusesQuery.isLoading
 
   return (
     <div>
@@ -132,13 +127,16 @@ export function KanbanBoard() {
           <div className="relative">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input
-              // Backend ApplicationFilters.q only searches name + description, not companyName.
               placeholder="Search by position or description..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-64 pl-8"
             />
           </div>
+          <Button variant="outline" onClick={() => setManageOpen(true)}>
+            <SlidersHorizontal className="h-4 w-4" />
+            Statuses
+          </Button>
           <Button onClick={() => setCreateOpen(true)}>
             <Plus className="h-4 w-4" />
             New Application
@@ -147,47 +145,53 @@ export function KanbanBoard() {
       </div>
 
       <div className="mb-6 flex items-center gap-2">
-        <span className="text-sm text-slate-500">Filters:</span>
-        {FILTERS.map((f) => (
+        {(['active', 'archived'] as const).map((v) => (
           <button
-            key={f.key}
+            key={v}
             type="button"
-            onClick={() => setFilter(f.key)}
+            onClick={() => setView(v)}
             className={cn(
-              'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
-              filter === f.key
+              'rounded-full border px-3 py-1 text-xs font-medium capitalize transition-colors',
+              view === v
                 ? 'border-slate-900 bg-slate-900 text-white'
                 : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100',
             )}
           >
-            {f.label}
+            {v}
           </button>
         ))}
-        {!isLoading && !isError && (
+        {!boardLoading && !isError && (
           <span className="ml-1 text-xs text-slate-400">{data?.totalElements ?? 0} applications</span>
         )}
       </div>
 
-      {isLoading ? (
+      {view === 'archived' ? (
+        boardLoading ? (
+          <div className="space-y-2">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="h-16 animate-pulse rounded-md bg-slate-100" />
+            ))}
+          </div>
+        ) : isError ? (
+          <ErrorBanner onRetry={() => refetch()} />
+        ) : (
+          <ArchivedApplicationsList applications={applications} />
+        )
+      ) : boardLoading ? (
         <BoardSkeleton />
       ) : isError ? (
         <ErrorBanner onRetry={() => refetch()} />
       ) : applications.length === 0 ? (
-        isFiltered ? <NoMatchesState /> : <EmptyState onCreate={() => setCreateOpen(true)} />
+        isSearching ? <NoMatchesState /> : <EmptyState onCreate={() => setCreateOpen(true)} />
       ) : (
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCorners}
-          onDragEnd={handleDragEnd}
-        >
+        <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
           <div className="flex gap-3 overflow-x-auto pb-4">
-            {KANBAN_COLUMNS.map((col) => (
+            {columns.map((col) => (
               <KanbanColumn
-                key={col.status}
-                status={col.status}
-                label={col.label}
-                applications={byStatus.get(col.status) ?? []}
-                onDelete={(id) => deleteApp.mutate(id)}
+                key={col.id}
+                status={col}
+                applications={byStatus.get(col.id) ?? []}
+                onArchive={(id) => archiveApp.mutate(id)}
               />
             ))}
           </div>
@@ -195,6 +199,7 @@ export function KanbanBoard() {
       )}
 
       <CreateApplicationModal open={createOpen} onOpenChange={setCreateOpen} />
+      <StatusManagerDialog open={manageOpen} onOpenChange={setManageOpen} />
     </div>
   )
 }

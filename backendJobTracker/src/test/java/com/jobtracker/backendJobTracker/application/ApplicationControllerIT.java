@@ -15,13 +15,13 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MvcResult;
 
 import com.jobtracker.backendJobTracker.AbstractIntegrationTest;
+import com.jobtracker.backendJobTracker.application.enums.ApplicationStatus;
 import com.jobtracker.backendJobTracker.auth.CustomUserDetails;
 import com.jobtracker.backendJobTracker.user.User;
 
 /**
- * Найважливіший IT: повний життєвий цикл заявки через HTTP + multi-tenancy.
- * Автентифікація — через spring-security-test principal (CustomUserDetails).
- * <p>Потребує Docker (Testcontainers Postgres + Redis).
+ * Full application lifecycle IT over HTTP + multi-tenancy.
+ * <p>Requires Docker (Testcontainers Postgres + Redis).
  */
 class ApplicationControllerIT extends AbstractIntegrationTest {
 
@@ -48,20 +48,19 @@ class ApplicationControllerIT extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("Повний цикл: create -> GET -> PATCH details -> PATCH status -> history(2)")
+    @DisplayName("Full cycle: create -> GET -> PATCH details -> PATCH status -> history(2)")
     void fullLifecycle() throws Exception {
         User user = persistUser("owner@example.com", "Passw0rd!");
         CustomUserDetails principal = principal(user);
 
         String id = createApplication(principal, validCreateBody());
 
-        // GET повертає створену заявку.
         mockMvc.perform(get(BASE + "/{id}", id).with(user(principal)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Backend Engineer"))
-                .andExpect(jsonPath("$.companyName").value("Acme"));
+                .andExpect(jsonPath("$.companyName").value("Acme"))
+                .andExpect(jsonPath("$.status.name").value("Saved"));
 
-        // PATCH деталей.
         mockMvc.perform(patch(BASE + "/{id}", id)
                         .with(user(principal))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -69,38 +68,41 @@ class ApplicationControllerIT extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Senior Backend Engineer"));
 
-        // PATCH статусу SAVED -> APPLIED.
+        // Move Saved -> Applied by the user's Applied status id.
+        String appliedId = statusId(user.getId(), ApplicationStatus.APPLIED).toString();
         mockMvc.perform(patch(BASE + "/{id}/status", id)
                         .with(user(principal))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(json(Map.of("status", "APPLIED", "note", "Sent CV"))))
-                .andExpect(status().isOk());
+                        .content(json(Map.of("statusId", appliedId, "note", "Sent CV"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status.name").value("Applied"));
 
-        // History має 2 записи: (null->SAVED) при створенні + (SAVED->APPLIED).
         mockMvc.perform(get(BASE + "/{id}/status-history", id).with(user(principal)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].toStatus").value("SAVED"))
-                .andExpect(jsonPath("$[1].fromStatus").value("SAVED"))
-                .andExpect(jsonPath("$[1].toStatus").value("APPLIED"));
+                .andExpect(jsonPath("$[0].toLabel").value("Saved"))
+                .andExpect(jsonPath("$[1].fromLabel").value("Saved"))
+                .andExpect(jsonPath("$[1].toLabel").value("Applied"));
     }
 
     @Test
-    @DisplayName("Недозволений перехід SAVED -> OFFER повертає 422")
-    void invalidTransitionReturns422() throws Exception {
+    @DisplayName("Free movement: Saved -> Offer is allowed (200)")
+    void freeMovementAllowed() throws Exception {
         User user = persistUser("owner2@example.com", "Passw0rd!");
         CustomUserDetails principal = principal(user);
         String id = createApplication(principal, validCreateBody());
 
+        String offerId = statusId(user.getId(), ApplicationStatus.OFFER).toString();
         mockMvc.perform(patch(BASE + "/{id}/status", id)
                         .with(user(principal))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(json(Map.of("status", "OFFER"))))
-                .andExpect(status().isUnprocessableEntity());
+                        .content(json(Map.of("statusId", offerId))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status.name").value("Offer"));
     }
 
     @Test
-    @DisplayName("Multi-tenancy: юзер B не бачить заявку юзера A (404)")
+    @DisplayName("Multi-tenancy: user B cannot see user A's application (404)")
     void tenantIsolation() throws Exception {
         User userA = persistUser("a@example.com", "Passw0rd!");
         User userB = persistUser("b@example.com", "Passw0rd!");
@@ -111,7 +113,7 @@ class ApplicationControllerIT extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("Без автентифікації -> 401")
+    @DisplayName("Unauthenticated -> 401")
     void unauthenticatedReturns401() throws Exception {
         mockMvc.perform(get(BASE + "/{id}", "00000000-0000-0000-0000-000000000000"))
                 .andExpect(status().isUnauthorized());

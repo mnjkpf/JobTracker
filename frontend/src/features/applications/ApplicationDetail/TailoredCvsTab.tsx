@@ -20,6 +20,7 @@ import {
 } from '@/features/tailoredCvs/hooks'
 import type { TailoredCvSummary } from '@/features/tailoredCvs/api'
 import { ViewTailoredCvDialog } from './ViewTailoredCvDialog'
+import { AttachedCvBadge } from './AttachedCvBadge'
 
 function scoreStyle(score: number): { bar: string; text: string } {
   if (score >= 75) return { bar: 'bg-green-500', text: 'text-green-700' }
@@ -121,6 +122,9 @@ export function TailoredCvsTab({ applicationId }: { applicationId: string }) {
 
   return (
     <div className="space-y-4">
+      <div className="flex justify-end">
+        <AttachedCvBadge applicationId={applicationId} />
+      </div>
       <div className="flex items-center justify-between">
         <p className="text-sm text-slate-500">
           {generate.isPending

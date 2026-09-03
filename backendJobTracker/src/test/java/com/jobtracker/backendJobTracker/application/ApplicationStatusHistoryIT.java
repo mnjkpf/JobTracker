@@ -20,8 +20,8 @@ import com.jobtracker.backendJobTracker.application.enums.WorkMode;
 import com.jobtracker.backendJobTracker.user.User;
 
 /**
- * IT для append-only audit log статусів (через service-шар + реальну БД).
- * <p>Потребує Docker (Testcontainers Postgres + Redis).
+ * IT for the append-only status audit log (via service layer + real DB).
+ * <p>Requires Docker (Testcontainers Postgres + Redis).
  */
 class ApplicationStatusHistoryIT extends AbstractIntegrationTest {
 
@@ -43,7 +43,7 @@ class ApplicationStatusHistoryIT extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("create пише перший запис історії (from=null -> SAVED)")
+    @DisplayName("create writes the first history row (from=null -> Saved)")
     void createWritesInitialHistory() {
         User user = persistUser("hist1@example.com", "Passw0rd!");
         ApplicationResponse app = applicationService.create(user.getId(), createRequest());
@@ -52,34 +52,34 @@ class ApplicationStatusHistoryIT extends AbstractIntegrationTest {
                 historyRepository.findByApplicationIdOrderByChangedAtAsc(app.getId());
 
         assertThat(history).hasSize(1);
-        assertThat(history.get(0).getFromStatus()).isNull();
-        assertThat(history.get(0).getToStatus()).isEqualTo(ApplicationStatus.SAVED);
+        assertThat(history.get(0).getFromLabel()).isNull();
+        assertThat(history.get(0).getToLabel()).isEqualTo("Saved");
     }
 
     @Test
-    @DisplayName("Кожен updateStatus додає рядок у хронологічному порядку")
+    @DisplayName("each updateStatus appends a row in chronological order")
     void eachTransitionAppendsRowInOrder() {
         User user = persistUser("hist2@example.com", "Passw0rd!");
         UUID userId = user.getId();
         ApplicationResponse app = applicationService.create(userId, createRequest());
         UUID appId = app.getId();
 
-        applicationService.updateStatus(userId, appId, statusRequest(ApplicationStatus.APPLIED));
-        applicationService.updateStatus(userId, appId, statusRequest(ApplicationStatus.SCREENING));
+        applicationService.updateStatus(userId, appId, statusRequest(userId, ApplicationStatus.APPLIED));
+        applicationService.updateStatus(userId, appId, statusRequest(userId, ApplicationStatus.SCREENING));
 
         List<ApplicationStatusHistory> history =
                 historyRepository.findByApplicationIdOrderByChangedAtAsc(appId);
 
         assertThat(history).hasSize(3);
-        assertThat(history).extracting(ApplicationStatusHistory::getToStatus)
-                .containsExactly(ApplicationStatus.SAVED, ApplicationStatus.APPLIED, ApplicationStatus.SCREENING);
-        assertThat(history).extracting(ApplicationStatusHistory::getFromStatus)
-                .containsExactly(null, ApplicationStatus.SAVED, ApplicationStatus.APPLIED);
+        assertThat(history).extracting(ApplicationStatusHistory::getToLabel)
+                .containsExactly("Saved", "Applied", "Screening");
+        assertThat(history).extracting(ApplicationStatusHistory::getFromLabel)
+                .containsExactly(null, "Saved", "Applied");
     }
 
-    private UpdateStatusRequest statusRequest(ApplicationStatus status) {
+    private UpdateStatusRequest statusRequest(UUID userId, ApplicationStatus systemType) {
         UpdateStatusRequest r = new UpdateStatusRequest();
-        r.setStatus(status);
+        r.setStatusId(statusId(userId, systemType));
         return r;
     }
 }

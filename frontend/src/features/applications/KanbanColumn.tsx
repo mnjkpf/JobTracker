@@ -1,30 +1,27 @@
 import { useDroppable } from '@dnd-kit/core'
 import { cn } from '@/lib/utils'
 import { ApplicationCard } from './ApplicationCard'
-import { STATUS_STYLES } from './statusMeta'
-import type { Application, ApplicationStatus } from './types'
+import { statusBadgeStyle, statusDotStyle } from './statusMeta'
+import type { Application } from './types'
+import type { Status } from '@/features/statuses/api'
 
 interface Props {
-  status: ApplicationStatus
-  label: string
+  status: Status
   applications: Application[]
-  onDelete: (id: string) => void
+  onArchive: (id: string) => void
 }
 
-export function KanbanColumn({ status, label, applications, onDelete }: Props) {
-  const { setNodeRef, isOver } = useDroppable({ id: status })
-  const style = STATUS_STYLES[status]
+export function KanbanColumn({ status, applications, onArchive }: Props) {
+  const { setNodeRef, isOver } = useDroppable({ id: status.id })
 
   return (
     <div className="flex w-72 shrink-0 flex-col rounded-lg bg-slate-100">
       <div className="flex items-center gap-2 px-3 py-2.5">
-        <span className={cn('h-2 w-2 rounded-full', style.dot)} />
-        <span className="text-sm font-medium text-slate-700">{label}</span>
+        <span className="h-2 w-2 rounded-full" style={statusDotStyle(status.color)} />
+        <span className="text-sm font-medium text-slate-700">{status.name}</span>
         <span
-          className={cn(
-            'ml-auto rounded-full px-2 py-0.5 text-xs font-medium',
-            style.badge,
-          )}
+          className="ml-auto rounded-full px-2 py-0.5 text-xs font-medium"
+          style={statusBadgeStyle(status.color)}
         >
           {applications.length}
         </span>
@@ -41,7 +38,7 @@ export function KanbanColumn({ status, label, applications, onDelete }: Props) {
           <p className="px-2 py-8 text-center text-xs text-slate-400">Empty</p>
         ) : (
           applications.map((app) => (
-            <ApplicationCard key={app.id} application={app} onDelete={onDelete} />
+            <ApplicationCard key={app.id} application={app} onArchive={onArchive} />
           ))
         )}
       </div>

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import type { Status } from '@/features/statuses/api'
 import { applicationsApi, gapAnalysisApi, type ListParams } from './api'
 import type {
   Application,
@@ -21,21 +22,19 @@ function errorMessage(error: unknown, fallback: string): string {
   return e?.response?.data?.detail ?? fallback
 }
 
-export const useApplications = (filters: Pick<ListParams, 'q' | 'statuses'> = {}) => {
-  return useQuery({
+export const useApplications = (filters: Pick<ListParams, 'q' | 'archived'> = {}) =>
+  useQuery({
     queryKey: [...APPLICATIONS_KEY, filters],
     queryFn: () =>
       applicationsApi.list({ page: 0, size: 100, sort: 'updatedAt,desc', ...filters }),
   })
-}
 
-export const useApplication = (id: string) => {
-  return useQuery({
+export const useApplication = (id: string) =>
+  useQuery({
     queryKey: ['application', id],
     queryFn: () => applicationsApi.getById(id),
     enabled: !!id,
   })
-}
 
 export const useCreateApplication = () => {
   const queryClient = useQueryClient()
@@ -69,28 +68,39 @@ export const useUpdateStatus = () => {
     mutationFn: ({ id, data }: { id: string; data: UpdateStatusRequest }) =>
       applicationsApi.updateStatus(id, data),
 
-    // Optimistic update — move the card instantly.
+    // Optimistic move — swap the card's embedded status using the statuses cache.
     onMutate: async ({ id, data }) => {
       await queryClient.cancelQueries({ queryKey: APPLICATIONS_KEY })
       const previous = queryClient.getQueriesData<Page<Application>>({ queryKey: APPLICATIONS_KEY })
+      const statuses = queryClient.getQueryData<Status[]>(['statuses'])
+      const target = statuses?.find((s) => s.id === data.statusId)
 
-      queryClient.setQueriesData<Page<Application>>({ queryKey: APPLICATIONS_KEY }, (old) => {
-        if (!old) return old
-        return {
-          ...old,
-          content: old.content.map((app) =>
-            app.id === id ? { ...app, status: data.status } : app,
-          ),
-        }
-      })
-
+      if (target) {
+        queryClient.setQueriesData<Page<Application>>({ queryKey: APPLICATIONS_KEY }, (old) => {
+          if (!old) return old
+          return {
+            ...old,
+            content: old.content.map((app) =>
+              app.id === id
+                ? {
+                    ...app,
+                    status: {
+                      id: target.id,
+                      name: target.name,
+                      color: target.color,
+                      systemType: target.systemType,
+                    },
+                  }
+                : app,
+            ),
+          }
+        })
+      }
       return { previous }
     },
 
     onError: (error, _variables, context) => {
-      context?.previous?.forEach(([queryKey, data]) => {
-        queryClient.setQueryData(queryKey, data)
-      })
+      context?.previous?.forEach(([queryKey, data]) => queryClient.setQueryData(queryKey, data))
       toast.error(errorMessage(error, 'Failed to update status'))
     },
 
@@ -98,6 +108,30 @@ export const useUpdateStatus = () => {
       queryClient.invalidateQueries({ queryKey: APPLICATIONS_KEY })
       queryClient.invalidateQueries({ queryKey: ['application', variables.id] })
     },
+  })
+}
+
+export const useArchiveApplication = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => applicationsApi.archive(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: APPLICATIONS_KEY })
+      toast.success('Moved to archive')
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to archive')),
+  })
+}
+
+export const useUnarchiveApplication = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => applicationsApi.unarchive(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: APPLICATIONS_KEY })
+      toast.success('Restored')
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to restore')),
   })
 }
 
@@ -113,8 +147,8 @@ export const useDeleteApplication = () => {
   })
 }
 
-export const useGapAnalysis = (applicationId: string) => {
-  return useQuery({
+export const useGapAnalysis = (applicationId: string) =>
+  useQuery({
     queryKey: ['gap-analysis', applicationId],
     queryFn: () => gapAnalysisApi.get(applicationId),
     enabled: !!applicationId,
@@ -124,7 +158,6 @@ export const useGapAnalysis = (applicationId: string) => {
       return failureCount < 1
     },
   })
-}
 
 export const useRunGapAnalysis = (applicationId: string) => {
   const queryClient = useQueryClient()

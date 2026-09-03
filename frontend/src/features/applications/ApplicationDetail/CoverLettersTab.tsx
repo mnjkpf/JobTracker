@@ -24,6 +24,7 @@ import {
 import type { CoverLetterSummary, CoverLetterTone } from '@/features/coverLetters/api'
 import { ViewCoverLetterDialog } from './ViewCoverLetterDialog'
 import { RefineCoverLetterDialog } from './RefineCoverLetterDialog'
+import { AttachedCvBadge } from './AttachedCvBadge'
 
 const TONES: { value: CoverLetterTone; label: string }[] = [
   { value: 'FORMAL', label: 'Formal' },
@@ -72,6 +73,9 @@ export function CoverLettersTab({ applicationId }: { applicationId: string }) {
 
   return (
     <div className="space-y-4">
+      <div className="flex justify-end">
+        <AttachedCvBadge applicationId={applicationId} />
+      </div>
       <div className="flex items-center justify-between">
         <p className="text-sm text-slate-500">
           {generate.isPending ? 'Generating cover letter… about 10–15 seconds' : `${letters.length} version${letters.length === 1 ? '' : 's'}`}

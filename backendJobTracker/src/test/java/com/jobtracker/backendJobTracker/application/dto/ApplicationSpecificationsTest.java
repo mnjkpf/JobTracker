@@ -22,7 +22,6 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
 import com.jobtracker.backendJobTracker.application.Application;
-import com.jobtracker.backendJobTracker.application.enums.ApplicationStatus;
 import com.jobtracker.backendJobTracker.application.enums.ContractType;
 import com.jobtracker.backendJobTracker.application.enums.Seniority;
 import com.jobtracker.backendJobTracker.application.enums.SourceBoard;
@@ -77,27 +76,20 @@ class ApplicationSpecificationsTest {
         verify(cb).equal(any(Expression.class), any(Object.class));
     }
 
-    @Test
-    @DisplayName("notArchived завжди генерує isFalse(archived)")
-    void notArchived() {
-        toPredicate(ApplicationSpecifications.notArchived());
-        verify(cb, never()).conjunction();
-        verify(cb).isFalse(any(Expression.class));
-    }
 
     // ── byStatus (multi-value) ──────────────────────────────────────────
 
     @Test
     @DisplayName("byStatus(null) і byStatus(empty) -> conjunction")
     void byStatus_nullOrEmpty() {
-        assertThat(toPredicate(ApplicationSpecifications.byStatus(null))).isSameAs(conjunction);
-        assertThat(toPredicate(ApplicationSpecifications.byStatus(List.of()))).isSameAs(conjunction);
+        assertThat(toPredicate(ApplicationSpecifications.byStatusIds(null))).isSameAs(conjunction);
+        assertThat(toPredicate(ApplicationSpecifications.byStatusIds(List.of()))).isSameAs(conjunction);
     }
 
     @Test
     @DisplayName("byStatus(non-empty) -> IN, не conjunction")
     void byStatus_values() {
-        toPredicate(ApplicationSpecifications.byStatus(List.of(ApplicationStatus.APPLIED, ApplicationStatus.SAVED)));
+        toPredicate(ApplicationSpecifications.byStatusIds(List.of(UUID.randomUUID(), UUID.randomUUID())));
         verify(cb, never()).conjunction();
         verify(path).in(any(java.util.Collection.class));
     }

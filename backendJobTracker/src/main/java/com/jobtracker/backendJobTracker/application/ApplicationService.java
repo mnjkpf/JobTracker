@@ -1,7 +1,5 @@
 package com.jobtracker.backendJobTracker.application;
 
-
-
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -18,16 +16,14 @@ import com.jobtracker.backendJobTracker.application.dto.ApplicationResponse;
 import static com.jobtracker.backendJobTracker.application.dto.ApplicationSpecifications.appliedAfter;
 import static com.jobtracker.backendJobTracker.application.dto.ApplicationSpecifications.appliedBefore;
 import com.jobtracker.backendJobTracker.application.dto.ApplicationStatusHistoryResponse;
-
 import static com.jobtracker.backendJobTracker.application.dto.ApplicationSpecifications.byCompany;
 import static com.jobtracker.backendJobTracker.application.dto.ApplicationSpecifications.byContractType;
 import static com.jobtracker.backendJobTracker.application.dto.ApplicationSpecifications.bySeniority;
 import static com.jobtracker.backendJobTracker.application.dto.ApplicationSpecifications.bySourceBoard;
-import static com.jobtracker.backendJobTracker.application.dto.ApplicationSpecifications.byStatus;
+import static com.jobtracker.backendJobTracker.application.dto.ApplicationSpecifications.byStatusIds;
 import static com.jobtracker.backendJobTracker.application.dto.ApplicationSpecifications.byUser;
 import static com.jobtracker.backendJobTracker.application.dto.ApplicationSpecifications.byWorkMode;
 import static com.jobtracker.backendJobTracker.application.dto.ApplicationSpecifications.minSalaryAtLeast;
-import static com.jobtracker.backendJobTracker.application.dto.ApplicationSpecifications.notArchived;
 import static com.jobtracker.backendJobTracker.application.dto.ApplicationSpecifications.searchQuery;
 import com.jobtracker.backendJobTracker.application.dto.ApplicationSummaryResponse;
 import com.jobtracker.backendJobTracker.application.dto.CreateApplicationRequest;
@@ -48,44 +44,41 @@ import com.jobtracker.backendJobTracker.exception.BusinessRuleException;
 import com.jobtracker.backendJobTracker.exception.ConflictException;
 import com.jobtracker.backendJobTracker.exception.ResourceNotFoundException;
 import com.jobtracker.backendJobTracker.interview.InterviewPrepService;
+import com.jobtracker.backendJobTracker.status.StatusCategory;
+import com.jobtracker.backendJobTracker.status.StatusCategoryRepository;
 import com.jobtracker.backendJobTracker.user.User;
 import com.jobtracker.backendJobTracker.user.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 
-
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class ApplicationService {
- 
-    // ДОДАНО: константи для history notes — консистентні рядки замість magic strings.
-    // Спрощує analytics ("скільки заявок створено через URL").
+
     private static final String NOTE_CREATED_MANUAL = "Application created manually";
     private static final String NOTE_CREATED_FROM_URL = "Application created from parsed URL";
- 
+
     private final ApplicationRepository applicationRepository;
     private final ApplicationStatusHistoryRepository statusHistoryRepository;
-    private final ApplicationStateMachine stateMachine;
     private final ApplicationMapper applicationMapper;
     private final CompanyService companyService;
     private final UserRepository userRepository;
-    // ДОДАНО для URL-based flow
     private final JobPostingExtractionService extractionService;
     private final JobBoardDetector jobBoardDetector;
     private final InterviewPrepService interviewPrepService;
-    // ═══════════════════════════════════════════════════════════════
-    // READ
-    // ═══════════════════════════════════════════════════════════════
- 
+    private final StatusCategoryRepository statusCategoryRepository;
+
+    // ─── READ ───────────────────────────────────────────────────────
+
     public ApplicationResponse getById(UUID userId, UUID id) {
         return applicationMapper.toResponse(fetchOwned(userId, id));
     }
- 
+
     public Page<ApplicationSummaryResponse> list(UUID userId, ApplicationFilters f, Pageable pageable) {
         Specification<Application> spec = Specification.where(byUser(userId))
-                .and(notArchived())
-                .and(byStatus(f.getStatuses()))
+                .and(archivedFilter(f.isArchived()))
+                .and(byStatusIds(f.getStatusIds()))
                 .and(byContractType(f.getContractType()))
                 .and(bySeniority(f.getSeniorities()))
                 .and(byWorkMode(f.getWorkMode()))
@@ -95,27 +88,25 @@ public class ApplicationService {
                 .and(appliedAfter(f.getAppliedAfter()))
                 .and(appliedBefore(f.getAppliedBefore()))
                 .and(minSalaryAtLeast(f.getMinSalary()));
- 
+
         return applicationRepository.findAll(spec, pageable)
                 .map(applicationMapper::toApplicationSummaryResponse);
     }
- 
+
     public List<ApplicationStatusHistoryResponse> getStatusHistory(UUID userId, UUID id) {
-        fetchOwned(userId, id);  // tenant check
+        fetchOwned(userId, id);
         return statusHistoryRepository.findByApplicationIdOrderByChangedAtAsc(id).stream()
                 .map(applicationMapper::toStatusHistoryResponse)
                 .toList();
     }
- 
-    // ═══════════════════════════════════════════════════════════════
-    // CREATE — MANUAL
-    // ═══════════════════════════════════════════════════════════════
- 
+
+    // ─── CREATE — MANUAL ────────────────────────────────────────────
+
     @Transactional
     public ApplicationResponse create(UUID userId, CreateApplicationRequest request) {
         Company company = companyService.findOrCreate(userId, request.getCompanyName());
         User userRef = userRepository.getReferenceById(userId);
- 
+
         Application app = new Application();
         app.setUser(userRef);
         app.setCompany(company);
@@ -131,34 +122,25 @@ public class ApplicationService {
         app.setSalaryMax(request.getSalaryMax());
         app.setSalaryCurrency(request.getSalaryCurrency());
         app.setSourceBoard(SourceBoard.MANUAL);
- 
-        ApplicationStatus initial = request.getStatus() != null ? request.getStatus() : ApplicationStatus.SAVED;
+
+        StatusCategory initial = resolveStatus(userId, request.getStatusId());
         app.setStatus(initial);
-        if (initial == ApplicationStatus.APPLIED) {
+        if (initial.getSystemType() == ApplicationStatus.APPLIED) {
             app.setAppliedAt(Instant.now());
         }
- 
+
         Application saved = saveOrThrowDuplicate(app);
         writeHistory(saved, null, initial, NOTE_CREATED_MANUAL);
         return applicationMapper.toResponse(saved);
     }
- 
-    // ═══════════════════════════════════════════════════════════════
-    // URL-BASED — PREVIEW (без save)
-    // ═══════════════════════════════════════════════════════════════
- 
-    /**
-     * Парсить URL, повертає попередній перегляд. НІЧОГО не зберігає.
-     * <p>
-     * userId не приймається — preview ні від кого не залежить, юзер не потрібен.
-     * Однак ставимо @Transactional(readOnly) бо в майбутньому можливо логуватимемо
-     * парсинги per-user (для cost tracking).
-     */
+
+    // ─── URL-BASED — PREVIEW (no save) ──────────────────────────────
+
     public ParseUrlPreviewResponse previewFromUrl(String url) {
         ParsedJobPosting parsed = extractionService.parse(url)
                 .orElseThrow(() -> new BusinessRuleException(
                         "Could not extract job posting data from this URL. Please add the application manually."));
- 
+
         ParseUrlPreviewResponse response = new ParseUrlPreviewResponse();
         response.setUrl(url);
         response.setPosition(parsed.getPosition());
@@ -178,24 +160,18 @@ public class ApplicationService {
                 : "Details extracted automatically. Please verify before saving.");
         return response;
     }
- 
-    // ═══════════════════════════════════════════════════════════════
-    // URL-BASED — CREATE (parse + persist в одній операції)
-    // ═══════════════════════════════════════════════════════════════
- 
-    /**
-     * Парсить URL і одразу створює заявку. Для випадків коли юзер довіряє
-     * AI/parser і не хоче проміжного preview-кроку.
-     */
+
+    // ─── URL-BASED — CREATE (parse + persist) ───────────────────────
+
     @Transactional
     public ApplicationResponse createFromUrl(UUID userId, String url) {
         ParsedJobPosting parsed = extractionService.parse(url)
                 .orElseThrow(() -> new BusinessRuleException(
                         "Could not extract job posting data from this URL. Please add the application manually."));
- 
+
         Company company = companyService.findOrCreate(userId, parsed.getCompanyName());
         User userRef = userRepository.getReferenceById(userId);
- 
+
         Application app = new Application();
         app.setUser(userRef);
         app.setCompany(company);
@@ -203,31 +179,28 @@ public class ApplicationService {
         app.setUrl(url);
         app.setDescription(parsed.getDescription());
         app.setLocation(parsed.getLocation());
- 
-        // Defaults для NOT NULL полів коли парсер не визначив.
-        // Тепер всі три enum мають NOT_SPECIFIED — consistent behavior, без оманливого MID.
+
         app.setContractType(parsed.getContractType() != null ? parsed.getContractType() : ContractType.NOT_SPECIFIED);
         app.setSeniority(parsed.getSeniority() != null ? parsed.getSeniority() : Seniority.NOT_SPECIFIED);
         app.setWorkMode(parsed.getWorkMode() != null ? parsed.getWorkMode() : WorkMode.NOT_SPECIFIED);
- 
+
         applySalary(app, parsed);
- 
+
         app.setSourceBoard(jobBoardDetector.detect(url));
-        app.setStatus(ApplicationStatus.SAVED);
- 
+        StatusCategory savedStatus = resolveDefaultStatus(userId);
+        app.setStatus(savedStatus);
+
         Application saved = saveOrThrowDuplicate(app);
-        writeHistory(saved, null, ApplicationStatus.SAVED, NOTE_CREATED_FROM_URL);
+        writeHistory(saved, null, savedStatus, NOTE_CREATED_FROM_URL);
         return applicationMapper.toResponse(saved);
     }
- 
-    // ═══════════════════════════════════════════════════════════════
-    // UPDATE
-    // ═══════════════════════════════════════════════════════════════
- 
+
+    // ─── UPDATE ─────────────────────────────────────────────────────
+
     @Transactional
     public ApplicationResponse updateDetails(UUID userId, UUID id, UpdateApplicationRequest r) {
         Application app = fetchOwned(userId, id);
- 
+
         if (r.getName() != null) app.setName(r.getName());
         if (r.getDescription() != null) app.setDescription(r.getDescription());
         if (r.getNotes() != null) app.setNotes(r.getNotes());
@@ -238,73 +211,86 @@ public class ApplicationService {
         if (r.getSalaryMin() != null) app.setSalaryMin(r.getSalaryMin());
         if (r.getSalaryMax() != null) app.setSalaryMax(r.getSalaryMax());
         if (r.getSalaryCurrency() != null) app.setSalaryCurrency(r.getSalaryCurrency());
- 
+
         return applicationMapper.toResponse(applicationRepository.save(app));
     }
- 
-   @Transactional
+
+    /**
+     * Free movement — any status to any status (no state machine). Special
+     * behaviour is driven by the target status' systemType.
+     */
+    @Transactional
     public ApplicationResponse updateStatus(UUID userId, UUID id, UpdateStatusRequest r) {
         Application app = fetchOwned(userId, id);
-    
-        ApplicationStatus from = app.getStatus();
-        ApplicationStatus to = r.getStatus();
-    
-        stateMachine.validateTransition(from, to);
-    
-        app.setStatus(to);
-        if (to == ApplicationStatus.APPLIED && app.getAppliedAt() == null) {
+        StatusCategory target = statusCategoryRepository.findByIdAndUserId(r.getStatusId(), userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Status not found: " + r.getStatusId()));
+
+        StatusCategory from = app.getStatus();
+        app.setStatus(target);
+
+        if (target.getSystemType() == ApplicationStatus.APPLIED && app.getAppliedAt() == null) {
             app.setAppliedAt(Instant.now());
         }
-    
+
         Application saved = applicationRepository.save(app);
-        writeHistory(saved, from, to, r.getNote());
-    
-        // ДОДАНО: hook на статус INTERVIEW.
-        // Auto-create порожній InterviewPrep заготовку (status=DRAFT, без questions).
-        // Юзер сам потім тисне "Generate" у UI коли захоче згенерувати guide.
-        //
-        // createIfNotExists є idempotent — повторні переходи в INTERVIEW
-        // (наприклад INTERVIEW → REJECTED → INTERVIEW) не створюють дубліката.
-        if (to == ApplicationStatus.INTERVIEW) {
+        writeHistory(saved, from, target, r.getNote());
+
+        // Auto-create a DRAFT interview prep when moving into an INTERVIEW-type status.
+        // createIfNotExists is idempotent.
+        if (target.getSystemType() == ApplicationStatus.INTERVIEW) {
             interviewPrepService.createIfNotExists(saved.getId());
         }
-    
+
         return applicationMapper.toResponse(saved);
     }
 
- 
-    // ═══════════════════════════════════════════════════════════════
-    // DELETE / ARCHIVE
-    // ═══════════════════════════════════════════════════════════════
- 
+    // ─── DELETE / ARCHIVE ───────────────────────────────────────────
+
     @Transactional
     public void archive(UUID userId, UUID id) {
         Application app = fetchOwned(userId, id);
         app.setArchived(true);
         applicationRepository.save(app);
     }
- 
+
     @Transactional
     public void unarchive(UUID userId, UUID id) {
         Application app = fetchOwned(userId, id);
         app.setArchived(false);
         applicationRepository.save(app);
     }
- 
+
     @Transactional
     public void hardDelete(UUID userId, UUID id) {
         applicationRepository.delete(fetchOwned(userId, id));
     }
- 
-    // ═══════════════════════════════════════════════════════════════
-    // PRIVATE HELPERS
-    // ═══════════════════════════════════════════════════════════════
- 
+
+    // ─── PRIVATE HELPERS ────────────────────────────────────────────
+
     private Application fetchOwned(UUID userId, UUID id) {
         return applicationRepository.findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Application not found: " + id));
     }
- 
+
+    private StatusCategory resolveStatus(UUID userId, UUID statusId) {
+        if (statusId != null) {
+            return statusCategoryRepository.findByIdAndUserId(statusId, userId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Status not found: " + statusId));
+        }
+        return resolveDefaultStatus(userId);
+    }
+
+    private StatusCategory resolveDefaultStatus(UUID userId) {
+        return statusCategoryRepository.findByUserIdAndSystemType(userId, ApplicationStatus.SAVED)
+                .or(() -> statusCategoryRepository.findByUserIdOrderByPositionAsc(userId).stream().findFirst())
+                .orElseThrow(() -> new BusinessRuleException("No statuses configured for this account"));
+    }
+
+    private Specification<Application> archivedFilter(boolean archived) {
+        return (root, query, criteriaBuilder) ->
+                criteriaBuilder.equal(root.get("archived"), archived);
+    }
+
     private Application saveOrThrowDuplicate(Application app) {
         try {
             return applicationRepository.save(app);
@@ -312,21 +298,16 @@ public class ApplicationService {
             throw new ConflictException("You already have an application for this URL");
         }
     }
- 
-    private void writeHistory(Application app, ApplicationStatus from, ApplicationStatus to, String note) {
+
+    private void writeHistory(Application app, StatusCategory from, StatusCategory to, String note) {
         ApplicationStatusHistory h = new ApplicationStatusHistory();
         h.setApplication(app);
-        h.setFromStatus(from);
-        h.setToStatus(to);
+        h.setFromLabel(from != null ? from.getName() : null);
+        h.setToLabel(to.getName());
         h.setNote(note);
         statusHistoryRepository.save(h);
     }
- 
-    /**
-     * Salary з парсера ненадійний — буває лише min, лише max, або інвертований діапазон.
-     * БД має CHECK (salary_min <= salary_max), тож інвертований діапазон відкидаємо повністю,
-     * щоб не отримати оманливий ConflictException замість чесного "не розпарсилось".
-     */
+
     private void applySalary(Application app, ParsedJobPosting parsed) {
         Integer min = parsed.getSalaryMin();
         Integer max = parsed.getSalaryMax();
