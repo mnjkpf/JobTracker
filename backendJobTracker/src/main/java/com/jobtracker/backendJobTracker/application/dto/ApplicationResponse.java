@@ -3,7 +3,6 @@ package com.jobtracker.backendJobTracker.application.dto;
 import java.time.Instant;
 import java.util.UUID;
 
-import com.jobtracker.backendJobTracker.application.enums.ApplicationStatus;
 import com.jobtracker.backendJobTracker.application.enums.ContractType;
 import com.jobtracker.backendJobTracker.application.enums.Seniority;
 import com.jobtracker.backendJobTracker.application.enums.SourceBoard;
@@ -12,10 +11,6 @@ import com.jobtracker.backendJobTracker.application.enums.WorkMode;
 import lombok.Getter;
 import lombok.Setter;
 
-/**
- * Full application detail (GET /applications/{id}). Same field naming as
- * ApplicationSummaryResponse plus description/notes-free detail view fields.
- */
 @Getter
 @Setter
 public class ApplicationResponse {
@@ -26,7 +21,7 @@ public class ApplicationResponse {
     private String url;
     private String companyName;
     private String location;
-    private ApplicationStatus status;
+    private StatusSummary status;
     private Seniority seniority;
     private WorkMode workMode;
     private ContractType contractType;

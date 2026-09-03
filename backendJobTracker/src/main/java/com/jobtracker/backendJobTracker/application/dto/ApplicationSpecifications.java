@@ -6,7 +6,6 @@ import java.util.UUID;
 import org.springframework.data.jpa.domain.Specification;
 
 import com.jobtracker.backendJobTracker.application.Application;
-import com.jobtracker.backendJobTracker.application.enums.ApplicationStatus;
 import com.jobtracker.backendJobTracker.application.enums.ContractType;
 import com.jobtracker.backendJobTracker.application.enums.Seniority;
 import com.jobtracker.backendJobTracker.application.enums.SourceBoard;
@@ -59,8 +58,8 @@ public final class ApplicationSpecifications {
      * Soft delete — за замовчуванням list endpoint приховує archived заявки.
      * Архівні видно тільки через окремий explicit endpoint (якщо взагалі додамо).
      */
-    public static Specification<Application> notArchived() {
-        return (root, query, cb) -> cb.isFalse(root.get("archived"));
+    public static Specification<Application> archivedFilter(boolean archived) {
+        return (root, query, cb) -> cb.equal(root.get("archived"), Boolean.TRUE.equals(archived));
     }
  
     // ═══════════════════════════════════════════════════════════════
@@ -73,12 +72,12 @@ public final class ApplicationSpecifications {
      * <p>
      * SQL: {@code WHERE status IN (?, ?, ?)} — efficient, використовує index якщо є.
      */
-    public static Specification<Application> byStatus(Collection<ApplicationStatus> statuses) {
+    public static Specification<Application> byStatusIds(Collection<UUID> statusIds) {
         return (root, query, cb) -> {
-            if (statuses == null || statuses.isEmpty()) {
-                return cb.conjunction();  // "WHERE TRUE" — no-op
+            if (statusIds == null || statusIds.isEmpty()) {
+                return cb.conjunction();
             }
-            return root.get("status").in(statuses);
+            return root.get("status").get("id").in(statusIds);
         };
     }
  

@@ -3,7 +3,7 @@ package com.jobtracker.backendJobTracker.application;
 import java.time.Instant;
 import java.util.UUID;
 
-import com.jobtracker.backendJobTracker.application.enums.ApplicationStatus;
+import com.jobtracker.backendJobTracker.status.StatusCategory;
 import com.jobtracker.backendJobTracker.application.enums.ContractType;
 import com.jobtracker.backendJobTracker.application.enums.Seniority;
 import com.jobtracker.backendJobTracker.application.enums.SourceBoard;
@@ -66,9 +66,9 @@ public class Application {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(nullable = false)
-    @Enumerated(EnumType.STRING)
-    private ApplicationStatus status;
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "status_id", nullable = false)
+    private StatusCategory status;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, name = "contract_type")

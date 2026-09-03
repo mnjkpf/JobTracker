@@ -18,6 +18,7 @@ import com.jobtracker.backendJobTracker.exception.UnauthorizedException;
 import com.jobtracker.backendJobTracker.user.Role;
 import com.jobtracker.backendJobTracker.user.User;
 import com.jobtracker.backendJobTracker.user.UserRepository;
+import com.jobtracker.backendJobTracker.status.StatusService;
 import com.jobtracker.backendJobTracker.util.HashUtil;
 
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
+    private final StatusService statusService;
 
     @Transactional
     public LoginResponse register( RegisterRequest request) {
@@ -52,6 +54,8 @@ public class AuthService {
         user.setEmailVerified(false);  // підтвердиться через email verification flow (W2-B)
  
         User saved = userRepository.save(user);
+
+        statusService.seedDefaults(saved);
 
         return jwtService.generateTokens(saved);
     }
