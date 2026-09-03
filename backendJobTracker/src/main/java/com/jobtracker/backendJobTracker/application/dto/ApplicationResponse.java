@@ -29,6 +29,7 @@ public class ApplicationResponse {
     private Integer salaryMin;
     private Integer salaryMax;
     private String salaryCurrency;
+    private boolean archived;
     private Instant appliedAt;
     private Instant createdAt;
     private Instant updatedAt;
