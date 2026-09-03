@@ -1,5 +1,7 @@
 package com.jobtracker.backendJobTracker;
 
+import java.util.UUID;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -10,23 +12,18 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jobtracker.backendJobTracker.application.enums.ApplicationStatus;
 import com.jobtracker.backendJobTracker.auth.CustomUserDetails;
+import com.jobtracker.backendJobTracker.status.StatusCategoryRepository;
+import com.jobtracker.backendJobTracker.status.StatusService;
 import com.jobtracker.backendJobTracker.user.Role;
 import com.jobtracker.backendJobTracker.user.User;
 import com.jobtracker.backendJobTracker.user.UserRepository;
 
 /**
- * Базовий клас для всіх integration-тестів.
- * <p>
- * Стартує повний Spring контекст + реальні Postgres та Redis у Docker через
- * {@link TestcontainersConfiguration} (@ServiceConnection). Кожен тест виконується
- * у транзакції, яка відкочується після завершення — повна ізоляція без ручного cleanup.
- * <p>
- * <b>Передумова запуску:</b> доступний Docker daemon (Testcontainers).
- * <p>
- * Автентифікація в тестах робиться через spring-security-test
- * ({@code .with(user(principal(...)))}), а не через реальний JWT-флоу — це ізолює
- * тести контролерів від механіки токенів.
+ * Base class for integration tests. Full Spring context + real Postgres/Redis
+ * (Testcontainers). Each test runs in a rolled-back transaction.
+ * <p><b>Requires Docker.</b>
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -47,7 +44,13 @@ public abstract class AbstractIntegrationTest {
     @Autowired
     protected PasswordEncoder passwordEncoder;
 
-    /** Створює і зберігає активного юзера з BCrypt-паролем. */
+    @Autowired
+    protected StatusService statusService;
+
+    @Autowired
+    protected StatusCategoryRepository statusCategoryRepository;
+
+    /** Creates and saves an active user with BCrypt password AND the 9 default statuses. */
     protected User persistUser(String email, String rawPassword) {
         User user = new User();
         user.setEmail(email.toLowerCase());
@@ -56,10 +59,18 @@ public abstract class AbstractIntegrationTest {
         user.setRole(Role.USER);
         user.setActive(true);
         user.setEmailVerified(true);
-        return userRepository.save(user);
+        User saved = userRepository.save(user);
+        statusService.seedDefaults(saved); // mirror AuthService.register
+        return saved;
     }
 
-    /** Security principal для {@code .with(user(...))} на захищених запитах. */
+    /** Resolve a seeded status id for a user by its semantic system type. */
+    protected UUID statusId(UUID userId, ApplicationStatus systemType) {
+        return statusCategoryRepository.findByUserIdAndSystemType(userId, systemType)
+                .orElseThrow(() -> new IllegalStateException("No seeded status for " + systemType))
+                .getId();
+    }
+
     protected CustomUserDetails principal(User user) {
         return new CustomUserDetails(user);
     }

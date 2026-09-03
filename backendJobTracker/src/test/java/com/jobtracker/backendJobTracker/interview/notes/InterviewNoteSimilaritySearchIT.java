@@ -87,7 +87,7 @@ class InterviewNoteSimilaritySearchIT extends AbstractIntegrationTest {
         for (ApplicationStatus s : List.of(ApplicationStatus.APPLIED,
                 ApplicationStatus.SCREENING, ApplicationStatus.INTERVIEW)) {
             UpdateStatusRequest sr = new UpdateStatusRequest();
-            sr.setStatus(s);
+            sr.setStatusId(statusId(userId, s));
             applicationService.updateStatus(userId, appId, sr);
         }
         return prepRepository.findByApplicationId(appId).orElseThrow();
