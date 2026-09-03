@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react'
 import { ExternalLink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
+import { useStatuses } from '@/features/statuses/hooks'
 import { useUpdateStatus } from '../hooks'
-import { STATUS_META } from '../statusMeta'
-import { VALID_TRANSITIONS } from '../types'
+import { statusBadgeStyle } from '../statusMeta'
 import type { Application } from '../types'
+import { ApplicationCvPanel } from './ApplicationCvPanel'
 
 function fmtDate(iso: string | null): string {
   if (!iso) return '—'
@@ -37,7 +37,8 @@ function MetaRow({ label, children }: { label: string; children: ReactNode }) {
 
 export function OverviewTab({ application }: { application: Application }) {
   const updateStatus = useUpdateStatus()
-  const next = VALID_TRANSITIONS[application.status]
+  const { data: statuses } = useStatuses()
+  const others = (statuses ?? []).filter((s) => s.id !== application.status.id)
 
   return (
     <div className="max-w-3xl space-y-8">
@@ -62,6 +63,8 @@ export function OverviewTab({ application }: { application: Application }) {
         </MetaRow>
       </dl>
 
+      <ApplicationCvPanel applicationId={application.id} />
+
       {application.description && (
         <section>
           <h3 className="mb-2 text-sm font-semibold text-slate-900">Description</h3>
@@ -73,29 +76,30 @@ export function OverviewTab({ application }: { application: Application }) {
 
       <section>
         <h3 className="mb-3 text-sm font-semibold text-slate-900">Change status</h3>
-        {next.length === 0 ? (
+        <div className="mb-3 flex items-center gap-2 text-sm text-slate-500">
+          <span>Current:</span>
+          <span
+            className="rounded-full px-2 py-0.5 text-xs font-medium"
+            style={statusBadgeStyle(application.status.color)}
+          >
+            {application.status.name}
+          </span>
+        </div>
+        {others.length === 0 ? (
           <p className="text-sm text-slate-400">
-            <span
-              className={cn(
-                'mr-2 rounded-full px-2 py-0.5 text-xs font-medium',
-                STATUS_META[application.status].badge,
-              )}
-            >
-              {STATUS_META[application.status].label}
-            </span>
-            is a terminal status — no further moves.
+            No other statuses yet — add some from &ldquo;Statuses&rdquo; on the board.
           </p>
         ) : (
           <div className="flex flex-wrap gap-2">
-            {next.map((s) => (
+            {others.map((s) => (
               <Button
-                key={s}
+                key={s.id}
                 variant="outline"
                 size="sm"
                 disabled={updateStatus.isPending}
-                onClick={() => updateStatus.mutate({ id: application.id, data: { status: s } })}
+                onClick={() => updateStatus.mutate({ id: application.id, data: { statusId: s.id } })}
               >
-                Move to {STATUS_META[s].label}
+                Move to {s.name}
               </Button>
             ))}
           </div>

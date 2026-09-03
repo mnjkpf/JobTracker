@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Loader2, Pencil, Trash2 } from 'lucide-react'
+import { Archive, ArrowLeft, Loader2, Pencil, RotateCcw, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -11,9 +11,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { cn } from '@/lib/utils'
-import { useApplication, useDeleteApplication } from '@/features/applications/hooks'
-import { STATUS_META } from '@/features/applications/statusMeta'
+import {
+  useApplication,
+  useArchiveApplication,
+  useDeleteApplication,
+  useUnarchiveApplication,
+} from '@/features/applications/hooks'
+import { statusBadgeStyle } from '@/features/applications/statusMeta'
 import { OverviewTab } from '@/features/applications/ApplicationDetail/OverviewTab'
 import { GapAnalysisTab } from '@/features/applications/ApplicationDetail/GapAnalysisTab'
 import { CoverLettersTab } from '@/features/applications/ApplicationDetail/CoverLettersTab'
@@ -48,6 +52,8 @@ export default function ApplicationDetailPage() {
   const navigate = useNavigate()
   const { data: app, isLoading, isError } = useApplication(id)
   const del = useDeleteApplication()
+  const archive = useArchiveApplication()
+  const unarchive = useUnarchiveApplication()
   const [editOpen, setEditOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
 
@@ -76,13 +82,16 @@ export default function ApplicationDetailPage() {
                 <div className="flex items-center gap-3">
                   <h1 className="text-2xl font-bold tracking-tight text-slate-900">{app.name}</h1>
                   <span
-                    className={cn(
-                      'rounded-full px-2.5 py-0.5 text-xs font-medium',
-                      STATUS_META[app.status].badge,
-                    )}
+                    className="rounded-full px-2.5 py-0.5 text-xs font-medium"
+                    style={statusBadgeStyle(app.status.color)}
                   >
-                    {STATUS_META[app.status].label}
+                    {app.status.name}
                   </span>
+                  {app.archived && (
+                    <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-500">
+                      Archived
+                    </span>
+                  )}
                 </div>
                 <p className="mt-1 text-sm text-slate-500">
                   {[app.companyName, app.location].filter(Boolean).join(' · ') || '—'}
@@ -92,6 +101,25 @@ export default function ApplicationDetailPage() {
                 <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
                   <Pencil className="h-4 w-4" /> Edit
                 </Button>
+                {app.archived ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={unarchive.isPending}
+                    onClick={() => unarchive.mutate(app.id)}
+                  >
+                    <RotateCcw className="h-4 w-4" /> Restore
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={archive.isPending}
+                    onClick={() => archive.mutate(app.id)}
+                  >
+                    <Archive className="h-4 w-4" /> Archive
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   size="sm"
@@ -135,10 +163,10 @@ export default function ApplicationDetailPage() {
             <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
               <DialogContent className="max-w-md">
                 <DialogHeader>
-                  <DialogTitle>Delete application</DialogTitle>
+                  <DialogTitle>Delete permanently</DialogTitle>
                   <DialogDescription>
                     This permanently deletes {app.name} and its notes, cover letters, tailored CVs and
-                    interview prep. This cannot be undone.
+                    interview prep. This cannot be undone. To just hide it, use Archive instead.
                   </DialogDescription>
                 </DialogHeader>
                 <DialogFooter>
@@ -147,7 +175,7 @@ export default function ApplicationDetailPage() {
                   </Button>
                   <Button variant="destructive" onClick={handleDelete} disabled={del.isPending}>
                     {del.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-                    Delete
+                    Delete permanently
                   </Button>
                 </DialogFooter>
               </DialogContent>

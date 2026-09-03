@@ -10,13 +10,14 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { useGeneratePrep, useInterviewPrep, useRelevantNotes } from '@/features/interviewPrep/hooks'
+import { useStatuses } from '@/features/statuses/hooks'
 import { useUpdateStatus } from '../hooks'
-import { STATUS_META } from '../statusMeta'
-import { VALID_TRANSITIONS } from '../types'
-import type { ApplicationStatus } from '../types'
+import { statusBadgeStyle } from '../statusMeta'
+import type { ApplicationStatusRef } from '../types'
 import { PrepGuidePanel } from './PrepGuidePanel'
 import { NotesPanel } from './NotesPanel'
 import { RagInsightsPanel } from './RagInsightsPanel'
+import { AttachedCvBadge } from './AttachedCvBadge'
 
 function statusOf(error: unknown): number | undefined {
   return (error as { response?: { status?: number } })?.response?.status
@@ -26,31 +27,45 @@ function fmt(iso: string) {
   return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
-function NotInterviewYet({ applicationId, status }: { applicationId: string; status: ApplicationStatus }) {
+function NotInterviewYet({
+  applicationId,
+  status,
+}: {
+  applicationId: string
+  status: ApplicationStatusRef
+}) {
   const updateStatus = useUpdateStatus()
-  const canMoveToInterview = VALID_TRANSITIONS[status].includes('INTERVIEW')
+  const { data: statuses } = useStatuses()
+  const interviewStatus = (statuses ?? []).find((s) => s.systemType === 'INTERVIEW')
+  const alreadyInterview = status.systemType === 'INTERVIEW'
 
   return (
     <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white py-16 text-center">
       <Sparkles className="mb-3 h-8 w-8 text-slate-400" />
       <h3 className="text-lg font-semibold text-slate-900">Interview prep</h3>
       <p className="mt-1 max-w-md text-sm text-slate-500">
-        Move this application to Interview status to unlock an AI-generated prep guide — tailored
+        Move this application to an Interview status to unlock an AI-generated prep guide — tailored
         questions, suggested answers, and insights pulled from your past interview notes.
       </p>
-      {canMoveToInterview ? (
+      {interviewStatus && !alreadyInterview ? (
         <Button
           className="mt-4"
           disabled={updateStatus.isPending}
-          onClick={() => updateStatus.mutate({ id: applicationId, data: { status: 'INTERVIEW' } })}
+          onClick={() => updateStatus.mutate({ id: applicationId, data: { statusId: interviewStatus.id } })}
         >
           {updateStatus.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-          Move to Interview
+          Move to {interviewStatus.name}
         </Button>
       ) : (
-        <p className="mt-3 text-xs text-slate-400">
-          Current status: {STATUS_META[status].label} — progress this application to Interview from
-          the Overview tab.
+        <p className="mt-3 flex items-center gap-2 text-xs text-slate-400">
+          Current status:
+          <span
+            className="rounded-full px-2 py-0.5 text-xs font-medium"
+            style={statusBadgeStyle(status.color)}
+          >
+            {status.name}
+          </span>
+          {!interviewStatus && '— no Interview-type status exists; add one in “Statuses”.'}
         </p>
       )}
     </div>
@@ -62,7 +77,7 @@ export function InterviewPrepTab({
   status,
 }: {
   applicationId: string
-  status: ApplicationStatus
+  status: ApplicationStatusRef
 }) {
   const { data: prep, isLoading, error } = useInterviewPrep(applicationId)
   const generate = useGeneratePrep(applicationId)
@@ -92,7 +107,10 @@ export function InterviewPrepTab({
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">Interview Prep</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-semibold text-slate-900">Interview Prep</h2>
+            <AttachedCvBadge applicationId={applicationId} />
+          </div>
           <p className="text-sm text-slate-500">
             {prep.status === 'GENERATED'
               ? `Generated${prep.promptVersion ? ` · ${prep.promptVersion}` : ''} · ${fmt(prep.createdAt)}`

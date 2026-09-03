@@ -1,0 +1,7 @@
+# ── Local secrets — NEVER commit (these live only here and in Railway Variables) ──
+/deploy-secrets.txt
+/jwt.txt
+/keys.txt
+/upstash.txt
+*.env
+.env
