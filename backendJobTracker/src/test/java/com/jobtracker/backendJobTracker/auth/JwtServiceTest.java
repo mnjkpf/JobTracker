@@ -62,6 +62,7 @@ class JwtServiceTest {
                 auth,
                 new JobTrackerProperties.RateLimit(100, Duration.ofHours(1), 10, Duration.ofMinutes(15)),
                 new JobTrackerProperties.Ai(Duration.ofDays(7), "text-embedding-3-small", 1536),
+                new JobTrackerProperties.Guest(Duration.ofDays(7), 3),
                 null);
 
         jwtService = new JwtService(props, refreshTokenRepository);

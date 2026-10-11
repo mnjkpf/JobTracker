@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
+import com.jobtracker.backendJobTracker.ai.AiQuotaService;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -50,6 +51,8 @@ class InterviewPrepServiceTest {
     @Mock private MasterCvRepository masterCvRepository;
     @Mock private InterviewPrepMapper mapper;
     @Mock private InterviewPrepGenerator generator;
+
+    @Mock private AiQuotaService aiQuotaService;
 
     @InjectMocks private InterviewPrepService service;
 

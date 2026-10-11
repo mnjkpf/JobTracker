@@ -26,12 +26,17 @@ public class User {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
  
-    /** Login identifier. Must be unique. Lowercased on save (handled in AuthService). */
-    @Column(unique = true, nullable = false)
+    /**
+     * Login identifier. Must be unique. Lowercased on save (handled in AuthService).
+     * <p>
+     * Nullable: гостьовий акаунт не має креденшлів доки не зареєструється.
+     * Postgres допускає будь-яку кількість NULL під UNIQUE, тому індекс не страдає.
+     */
+    @Column(unique = true)
     private String email;
  
-    /** BCrypt hash. Never stores raw password. */
-    @Column(nullable = false)
+    /** BCrypt hash. Never stores raw password. Null для гостьового акаунта. */
+    @Column
     private String passwordHash;
  
     /**
@@ -53,6 +58,24 @@ public class User {
     @Column(nullable = false)
     private boolean isEmailVerified = false;
  
+    /**
+     * Анонімний акаунт, створений без реєстрації. Зберігає дані як звичайний юзер,
+     * але згорає через {@code guestExpiresAt} і має ліміт AI-генерацій.
+     */
+    @Column(nullable = false)
+    private boolean isGuest = false;
+
+    /** Коли гостьовий акаунт підлягає автоочистці. Null для зареєстрованих. */
+    @Column(name = "guest_expires_at")
+    private Instant guestExpiresAt;
+
+    /**
+     * Скільки AI-генерацій (cover letter / tailored CV / interview prep) зроблено.
+     * Лічильник ведеться для всіх, але ліміт застосовується лише до гостей.
+     */
+    @Column(name = "ai_generations_used", nullable = false)
+    private int aiGenerationsUsed = 0;
+
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
  

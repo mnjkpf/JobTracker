@@ -40,14 +40,22 @@ public class JwtService {
     // Створення SecureRandom має деякі startup costs (seed від OS), тому переюзаємо.
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
+    /**
+     * Префікс JWT subject для гостьового акаунта: у нього немає email, тому
+     * subject — це {@code guest:<uuid>}. {@link UserDetailsServiceImpl} розпізнає
+     * цей префікс і резолвить юзера по id замість email.
+     */
+    public static final String GUEST_SUBJECT_PREFIX = "guest:";
+
     
     private final JobTrackerProperties properties;
     private final RefreshTokenRepository refreshTokenRepository;
 
     @Transactional
     public LoginResponse generateTokens(User user) {
-        // 1. Access token — підписаний JWT з email у claims (subject).
-        String accessToken = createAccessToken(user.getEmail());
+        // 1. Access token — підписаний JWT з email у claims (subject). Для гостя
+        //    email відсутній, тому subject = "guest:<uuid>".
+        String accessToken = createAccessToken(subjectFor(user));
 
         // 2. Refresh token — opaque random 256-bit string.
         //    Це НЕ JWT. Просто URL-safe Base64 від 32 random bytes.
@@ -175,6 +183,16 @@ public class JwtService {
      * Sign алгоритм визначається довжиною ключа: 256 bits → HS256, 384 → HS384, 512 → HS512.
      * Key.hmacShaKeyFor() автоматично обирає правильний.
      */
+    /**
+     * JWT subject юзера: email для зареєстрованого, {@code guest:<uuid>} для гостя.
+     * Після апгрейду гостя в повний акаунт видається нова пара токенів уже з email.
+     */
+    private String subjectFor(User user) {
+        return user.getEmail() != null
+                ? user.getEmail()
+                : GUEST_SUBJECT_PREFIX + user.getId();
+    }
+
     private String createAccessToken(String email) {
         Instant now = Instant.now();
         Instant expiry = now.plus(properties.auth().accessTokenTtl());

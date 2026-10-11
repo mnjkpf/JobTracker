@@ -26,6 +26,7 @@ public record JobTrackerProperties(
         @Valid @NotNull Auth auth,
         @Valid @NotNull RateLimit rateLimit,
         @Valid @NotNull Ai ai,
+        @Valid @NotNull Guest guest,
         @Valid Cors cors
 ) {
 
@@ -47,6 +48,14 @@ public record JobTrackerProperties(
             @NotNull Duration cacheTtl,
             @NotBlank String embeddingModel,
             @Positive int embeddingDimension
+    ) {}
+
+    /** Налаштування анонімного (гостьового) режиму. */
+    public record Guest(
+            /** Скільки живе гостьовий акаунт до автоочистки. */
+            @NotNull Duration ttl,
+            /** Скільки AI-генерацій дозволено гостю за весь час життя акаунта. */
+            @Positive int aiGenerationLimit
     ) {}
 
     public record Cors(

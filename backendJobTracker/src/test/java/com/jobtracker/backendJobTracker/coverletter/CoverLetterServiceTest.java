@@ -16,6 +16,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import com.jobtracker.backendJobTracker.ai.AiQuotaService;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -46,6 +47,8 @@ class CoverLetterServiceTest {
     @Mock private ApplicationRepository applicationRepository;
     @Mock private MasterCvRepository masterCvRepository;
     @Mock private CoverLetterMapper mapper;
+
+    @Mock private AiQuotaService aiQuotaService;
 
     @InjectMocks private CoverLetterService service;
 

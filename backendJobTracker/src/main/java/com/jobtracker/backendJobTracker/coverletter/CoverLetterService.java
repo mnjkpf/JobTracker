@@ -12,6 +12,7 @@ import com.jobtracker.backendJobTracker.coverletter.dto.CoverLetterResponse;
 import com.jobtracker.backendJobTracker.coverletter.dto.CoverLetterSummaryResponse;
 import com.jobtracker.backendJobTracker.coverletter.dto.GenerateCoverLetterRequest;
 import com.jobtracker.backendJobTracker.coverletter.dto.RefineCoverLetterRequest;
+import com.jobtracker.backendJobTracker.ai.AiQuotaService;
 import com.jobtracker.backendJobTracker.cv.models.MasterCv;
 import com.jobtracker.backendJobTracker.cv.repo.MasterCvRepository;
 import com.jobtracker.backendJobTracker.exception.BusinessRuleException;
@@ -26,6 +27,7 @@ public class CoverLetterService {
  
     private final CoverLetterRepository coverLetterRepository;
     private final CoverLetterGenerator generator;
+    private final AiQuotaService aiQuotaService;
     private final ApplicationRepository applicationRepository;
     private final MasterCvRepository masterCvRepository;
     private final CoverLetterMapper mapper;
@@ -41,6 +43,8 @@ public class CoverLetterService {
                 .orElseThrow(() -> new BusinessRuleException(
                         "Upload your CV first — cover letter needs context."));
  
+        aiQuotaService.consumeGeneration(userId);
+
         String content = generator.generate(cv, application, request.getTone(),
                 request.getAdditionalInstructions());           // ВИПРАВЛЕНО: getAdditionalInstructions (не getExtraInstructions)
  
@@ -64,6 +68,8 @@ public class CoverLetterService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Cover letter not found: " + coverLetterId));
  
+        aiQuotaService.consumeGeneration(userId);
+
         String refinedContent = generator.refine(existing.getContent(), request.getInstruction());
  
         // ВИПРАВЛЕНО: створюємо НОВИЙ запис, не модифікуємо існуючий.
