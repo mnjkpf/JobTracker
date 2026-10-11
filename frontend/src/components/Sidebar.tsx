@@ -1,7 +1,8 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-import { Briefcase, User, BarChart3, LogOut } from 'lucide-react'
+import { Briefcase, User, BarChart3, LogIn, LogOut, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getUserEmailFromToken } from '@/lib/jwt'
+import { useAccount } from '@/features/account/hooks'
 
 const NAV_ITEMS = [
   { to: '/', label: 'Applications', icon: Briefcase, end: true },
@@ -12,6 +13,9 @@ const NAV_ITEMS = [
 export function Sidebar() {
   const navigate = useNavigate()
   const email = getUserEmailFromToken()
+  const { data: account } = useAccount()
+  const isGuest = account?.guest ?? false
+  const generations = account?.aiGenerationsRemaining ?? null
 
   const handleLogout = () => {
     localStorage.clear()
@@ -45,15 +49,46 @@ export function Sidebar() {
       </nav>
 
       <div className="mt-auto border-t border-slate-200 pt-4">
-        {email && <p className="truncate px-3 text-xs text-slate-500" title={email}>{email}</p>}
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="mt-2 flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-slate-600 transition-colors hover:bg-slate-100"
-        >
-          <LogOut className="h-4 w-4" />
-          Logout
-        </button>
+        {isGuest ? (
+          <>
+            <p className="px-3 text-xs font-medium text-slate-700">Guest session</p>
+            <p className="px-3 text-xs text-slate-500">
+              {generations !== null
+                ? `${generations} AI generation${generations === 1 ? '' : 's'} left`
+                : 'Not saved permanently'}
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate('/register')}
+              className="mt-2 flex w-full items-center gap-3 rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-800"
+            >
+              <Sparkles className="h-4 w-4" />
+              Save my board
+            </button>
+            {/* A guest may already own an account — give them a way in without
+                having to clear storage by hand. */}
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="mt-1 flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-slate-600 transition-colors hover:bg-slate-100"
+            >
+              <LogIn className="h-4 w-4" />
+              Sign in instead
+            </button>
+          </>
+        ) : (
+          <>
+            {email && <p className="truncate px-3 text-xs text-slate-500" title={email}>{email}</p>}
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="mt-2 flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-slate-600 transition-colors hover:bg-slate-100"
+            >
+              <LogOut className="h-4 w-4" />
+              Logout
+            </button>
+          </>
+        )}
       </div>
     </aside>
   )
