@@ -22,6 +22,7 @@ import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobtracker.backendJobTracker.ai.AiService;
+import com.jobtracker.backendJobTracker.cv.CvContextResolver;
 import com.jobtracker.backendJobTracker.application.Application;
 import com.jobtracker.backendJobTracker.company.Company;
 import com.jobtracker.backendJobTracker.cv.models.Experience;
@@ -51,6 +52,7 @@ class TailoredCvGeneratorTest {
     @Mock private MasterCvSkillRepository masterCvSkillRepository;
     @Mock private ProjectRepository projectRepository;
     @Mock private LanguageRepository languageRepository;
+    @Mock private CvContextResolver cvContextResolver;
 
     private TailoredCvGenerator generator;
 
@@ -60,7 +62,8 @@ class TailoredCvGeneratorTest {
     void setUp() {
         ObjectMapper objectMapper = Jackson2ObjectMapperBuilder.json().build();
         generator = new TailoredCvGenerator(aiService, objectMapper, experienceRepository,
-                educationRepository, masterCvSkillRepository, projectRepository, languageRepository);
+                educationRepository, masterCvSkillRepository, projectRepository, languageRepository,
+                cvContextResolver);
     }
 
     private MasterCv master() {

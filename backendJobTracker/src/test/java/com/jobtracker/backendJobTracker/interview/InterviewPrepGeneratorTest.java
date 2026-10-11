@@ -20,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobtracker.backendJobTracker.ai.AiService;
+import com.jobtracker.backendJobTracker.cv.CvContextResolver;
 import com.jobtracker.backendJobTracker.application.Application;
 import com.jobtracker.backendJobTracker.application.enums.Seniority;
 import com.jobtracker.backendJobTracker.application.enums.WorkMode;
@@ -50,6 +51,7 @@ class InterviewPrepGeneratorTest {
     @Mock private ExperienceRepository experienceRepository;
     @Mock private MasterCvSkillRepository masterCvSkillRepository;
     @Mock private InterviewRagService ragService;
+    @Mock private CvContextResolver cvContextResolver;
 
     private InterviewPrepGenerator generator;
 
@@ -69,7 +71,7 @@ class InterviewPrepGeneratorTest {
         generator = new InterviewPrepGenerator(
                 aiService, new ObjectMapper(),
                 applicationSkillRepository, experienceRepository,
-                masterCvSkillRepository, ragService);
+                masterCvSkillRepository, ragService, cvContextResolver);
     }
 
     private Application app() {

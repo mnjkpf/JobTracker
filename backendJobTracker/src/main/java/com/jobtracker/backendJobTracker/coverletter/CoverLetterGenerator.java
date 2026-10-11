@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import com.jobtracker.backendJobTracker.ai.AiService;
 import com.jobtracker.backendJobTracker.application.Application;
 import com.jobtracker.backendJobTracker.coverletter.enums.CoverLetterTone;
+import com.jobtracker.backendJobTracker.cv.CvContextResolver;
 import com.jobtracker.backendJobTracker.cv.models.Education;
 import com.jobtracker.backendJobTracker.cv.models.Experience;
 import com.jobtracker.backendJobTracker.cv.models.MasterCv;
@@ -32,6 +33,7 @@ public class CoverLetterGenerator {
     private final ExperienceRepository experienceRepository;
     private final EducationRepository educationRepository;
     private final MasterCvSkillRepository masterCvSkillRepository;
+    private final CvContextResolver cvContextResolver;
  
     /**
      * ВИПРАВЛЕНО: tone — CoverLetterTone enum, не String. Prompt отримує .name().
@@ -39,7 +41,11 @@ public class CoverLetterGenerator {
     public String generate(MasterCv cv, Application app, CoverLetterTone tone, String extraInstructions) {
         String jobContext = buildJobContext(app);
         String cvContext = buildCvContext(cv);
-        String prompt = CoverLetterPrompt.build(jobContext, cvContext, tone.name(), extraInstructions);
+        // CV, прикріплене саме до цієї заявки, має приоритет над master — див.
+        // AttachedCvPrompt. Null якщо нічого не прикріплено → секція не додається.
+        String attachedCv = cvContextResolver.overrideText(app.getId()).orElse(null);
+        String prompt = CoverLetterPrompt.build(jobContext, cvContext, tone.name(),
+                extraInstructions, attachedCv);
         return aiService.complete(prompt);
     }
  

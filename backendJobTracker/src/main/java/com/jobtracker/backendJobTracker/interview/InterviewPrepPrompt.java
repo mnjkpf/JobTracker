@@ -1,5 +1,7 @@
 package com.jobtracker.backendJobTracker.interview;
 
+import com.jobtracker.backendJobTracker.cv.AttachedCvPrompt;
+
 
 
 
@@ -24,10 +26,20 @@ public final class InterviewPrepPrompt {
      * @param pastNotesContext   нотатки з минулих preps (може бути null/blank)
      */
     public static String build(String jobContext, String cvContext, String pastNotesContext) {
+        return build(jobContext, cvContext, pastNotesContext, null);
+    }
+
+    /**
+     * @param attachedCvText сирий текст CV, прикріпленого до цієї заявки; null/blank
+     *                       якщо нічого не прикріплено — тоді секція не додається.
+     */
+    public static String build(String jobContext, String cvContext, String pastNotesContext,
+            String attachedCvText) {
         StringBuilder sb = new StringBuilder();
         sb.append(SYSTEM_INSTRUCTION);
         sb.append("\n\n=== JOB POSTING ===\n").append(jobContext);
         sb.append("\n\n=== CANDIDATE CV ===\n").append(cvContext);
+        sb.append(AttachedCvPrompt.section(attachedCvText));
 
         // Past notes секція — лише якщо є. Graceful: перші співбесіди без RAG.
         if (pastNotesContext != null && !pastNotesContext.isBlank()) {
