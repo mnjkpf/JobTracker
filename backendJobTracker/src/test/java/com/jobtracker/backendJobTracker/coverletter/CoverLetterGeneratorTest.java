@@ -13,6 +13,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import com.jobtracker.backendJobTracker.cv.CvContextResolver;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -46,6 +47,7 @@ class CoverLetterGeneratorTest {
     @Mock private ExperienceRepository experienceRepository;
     @Mock private EducationRepository educationRepository;
     @Mock private MasterCvSkillRepository masterCvSkillRepository;
+    @Mock private CvContextResolver cvContextResolver;
 
     @InjectMocks private CoverLetterGenerator generator;
 

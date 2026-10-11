@@ -1,5 +1,7 @@
 package com.jobtracker.backendJobTracker.cv.tailored;
 
+import com.jobtracker.backendJobTracker.cv.AttachedCvPrompt;
+
 public final class TailoredCvPrompt {
  
     private TailoredCvPrompt() {
@@ -11,6 +13,15 @@ public final class TailoredCvPrompt {
      * Static — як JobExtractionPrompt, CoverLetterPrompt. Не Spring bean.
      */
     public static String build(String jobContext, String cvContext, String emphasisInstructions) {
+        return build(jobContext, cvContext, emphasisInstructions, null);
+    }
+
+    /**
+     * @param attachedCvText сирий текст CV, прикріпленого до цієї заявки; null/blank
+     *                       якщо нічого не прикріплено — тоді секція не додається.
+     */
+    public static String build(String jobContext, String cvContext, String emphasisInstructions,
+            String attachedCvText) {
         StringBuilder sb = new StringBuilder();
         sb.append(SYSTEM_INSTRUCTION);
         if (emphasisInstructions != null && !emphasisInstructions.isBlank()) {
@@ -18,6 +29,7 @@ public final class TailoredCvPrompt {
         }
         sb.append("\n\n=== JOB POSTING ===\n").append(jobContext);
         sb.append("\n\n=== MASTER CV ===\n").append(cvContext);
+        sb.append(AttachedCvPrompt.section(attachedCvText));
         return sb.toString();
     }
  

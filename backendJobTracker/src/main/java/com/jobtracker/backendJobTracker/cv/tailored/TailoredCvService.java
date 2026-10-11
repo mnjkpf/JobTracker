@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.jobtracker.backendJobTracker.application.Application;
 import com.jobtracker.backendJobTracker.application.ApplicationRepository;
 import com.jobtracker.backendJobTracker.cv.enums.CvLanguage;
+import com.jobtracker.backendJobTracker.ai.AiQuotaService;
 import com.jobtracker.backendJobTracker.cv.models.MasterCv;
 import com.jobtracker.backendJobTracker.cv.repo.MasterCvRepository;
 import com.jobtracker.backendJobTracker.cv.tailored.dto.GenerateTailoredCvRequest;
@@ -58,6 +59,7 @@ public class TailoredCvService {
     private final MasterCvRepository masterCvRepository;
  
     private final TailoredCvGenerator generator;
+    private final AiQuotaService aiQuotaService;
     private final TailoredCvMapper mapper;
  
     
@@ -71,6 +73,8 @@ public class TailoredCvService {
                 .orElseThrow(() -> new BusinessRuleException(
                         "Upload your CV first — tailored CV needs context."));
  
+        aiQuotaService.consumeGeneration(userId);
+
         // LLM call: master + job → ParsedTailoredCv
         ParsedTailoredCv parsed = generator.generate(master, app, request.getEmphasisInstructions());
  

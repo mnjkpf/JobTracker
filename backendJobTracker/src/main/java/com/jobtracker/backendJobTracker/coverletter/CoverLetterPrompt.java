@@ -1,5 +1,7 @@
 package com.jobtracker.backendJobTracker.coverletter;
 
+import com.jobtracker.backendJobTracker.cv.AttachedCvPrompt;
+
 public final class CoverLetterPrompt {
  
     private CoverLetterPrompt() {
@@ -9,6 +11,15 @@ public final class CoverLetterPrompt {
  
    
     public static String build(String jobContext, String cvContext, String tone, String extraInstructions) {
+        return build(jobContext, cvContext, tone, extraInstructions, null);
+    }
+
+    /**
+     * @param attachedCvText сирий текст CV, прикріпленого до цієї заявки; null/blank
+     *                       якщо нічого не прикріплено — тоді секція не додається.
+     */
+    public static String build(String jobContext, String cvContext, String tone,
+            String extraInstructions, String attachedCvText) {
         StringBuilder sb = new StringBuilder();
         sb.append(SYSTEM_INSTRUCTION);
         sb.append("\n\nTONE: ").append(tone);
@@ -17,6 +28,7 @@ public final class CoverLetterPrompt {
         }
         sb.append("\n\n=== JOB POSTING ===\n").append(jobContext);
         sb.append("\n\n=== CANDIDATE CV ===\n").append(cvContext);
+        sb.append(AttachedCvPrompt.section(attachedCvText));
         return sb.toString();
     }
  

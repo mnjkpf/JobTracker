@@ -13,6 +13,7 @@ import com.jobtracker.backendJobTracker.ai.AiService;
 import com.jobtracker.backendJobTracker.application.Application;
 import com.jobtracker.backendJobTracker.application.gap.ApplicationSkill;
 import com.jobtracker.backendJobTracker.application.gap.ApplicationSkillRepository;
+import com.jobtracker.backendJobTracker.cv.CvContextResolver;
 import com.jobtracker.backendJobTracker.cv.models.Experience;
 import com.jobtracker.backendJobTracker.cv.models.MasterCv;
 import com.jobtracker.backendJobTracker.cv.models.MasterCvSkill;
@@ -42,6 +43,7 @@ public class InterviewPrepGenerator {
     private final ExperienceRepository experienceRepository;
     private final MasterCvSkillRepository masterCvSkillRepository;
     private final InterviewRagService ragService;
+    private final CvContextResolver cvContextResolver;
 
     public ParsedPrepGuide generate(UUID userId, Application app, MasterCv master) {
         String jobContext = buildJobContext(app);
@@ -58,7 +60,12 @@ public class InterviewPrepGenerator {
 
         LOGGER.debug("Generating prep with {} relevant past notes", relevantNotes.size());
 
-        String prompt = InterviewPrepPrompt.build(jobContext, masterContext, pastNotesContext);
+        // CV, прикріплене саме до цієї заявки — те, по якому рекрутер і буде питати.
+        // Має приоритет над master CV, див. AttachedCvPrompt.
+        String attachedCv = cvContextResolver.overrideText(app.getId()).orElse(null);
+
+        String prompt = InterviewPrepPrompt.build(jobContext, masterContext, pastNotesContext,
+                attachedCv);
         String json = aiService.complete(prompt);
 
         if (json == null || json.isBlank()) {

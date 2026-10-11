@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.jobtracker.backendJobTracker.application.Application;
 import com.jobtracker.backendJobTracker.application.ApplicationRepository;
+import com.jobtracker.backendJobTracker.ai.AiQuotaService;
 import com.jobtracker.backendJobTracker.cv.models.MasterCv;
 import com.jobtracker.backendJobTracker.cv.repo.MasterCvRepository;
 import com.jobtracker.backendJobTracker.exception.BusinessRuleException;
@@ -35,6 +36,7 @@ public class InterviewPrepService {
     private final MasterCvRepository masterCvRepository;
     private final InterviewPrepMapper mapper;
     private final InterviewPrepGenerator generator;
+    private final AiQuotaService aiQuotaService;
     
     @Transactional   // ДОДАНО: клас readOnly, метод пише — потрібен override
     public void createIfNotExists(UUID applicationId) {
@@ -75,6 +77,8 @@ public class InterviewPrepService {
                         "Interview prep not found for application: " + applicationId));
  
         
+        aiQuotaService.consumeGeneration(userId);
+
         ParsedPrepGuide parsed = generator.generate(userId, app, master);
         
         interviewQuestionRepository.deleteByInterviewPrepId(prep.getId());

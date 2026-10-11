@@ -39,6 +39,18 @@ public class AuthController {
         return authService.register(request);
     }
     
+    /**
+     * Створює анонімну сесію — фронтенд викликає це при першому заході, щоб юзер
+     * одразу міг користуватись трекером без реєстрації. Дані згорають через
+     * {@code jobtracker.guest.ttl}; щоб залишити їх назавжди, гість робить
+     * {@code POST /api/v1/account/upgrade}.
+     */
+    @PostMapping("/guest")
+    @ResponseStatus(HttpStatus.CREATED)
+    public LoginResponse guest() {
+        return authService.createGuestSession();
+    }
+
     @PostMapping("/login")
     public LoginResponse login(@Valid @RequestBody LoginRequest request) {
         return authService.login(request);

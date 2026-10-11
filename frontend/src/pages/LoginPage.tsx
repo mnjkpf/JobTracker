@@ -24,6 +24,17 @@ export default function LoginPage() {
               Create one
             </Link>
           </p>
+
+          {/* Guest entry point: opening the board with no token starts an
+              anonymous session automatically (see ProtectedRoute). */}
+          <div className="border-t pt-4">
+            <Link
+              to="/"
+              className="block text-center text-sm font-medium text-muted-foreground hover:text-foreground hover:underline"
+            >
+              Or try it without an account
+            </Link>
+          </div>
         </CardContent>
       </Card>
     </div>

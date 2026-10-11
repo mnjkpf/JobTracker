@@ -13,6 +13,7 @@ import com.jobtracker.backendJobTracker.auth.dto.LoginRequest;
 import com.jobtracker.backendJobTracker.auth.dto.LoginResponse;
 import com.jobtracker.backendJobTracker.auth.dto.RefreshTokenRequest;
 import com.jobtracker.backendJobTracker.auth.dto.RegisterRequest;
+import com.jobtracker.backendJobTracker.config.JobTrackerProperties;
 import com.jobtracker.backendJobTracker.exception.ConflictException;
 import com.jobtracker.backendJobTracker.exception.UnauthorizedException;
 import com.jobtracker.backendJobTracker.user.Role;
@@ -20,6 +21,9 @@ import com.jobtracker.backendJobTracker.user.User;
 import com.jobtracker.backendJobTracker.user.UserRepository;
 import com.jobtracker.backendJobTracker.status.StatusService;
 import com.jobtracker.backendJobTracker.util.HashUtil;
+
+import java.time.Instant;
+import java.util.UUID;
 
 import lombok.RequiredArgsConstructor;
 
@@ -34,6 +38,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final StatusService statusService;
+    private final JobTrackerProperties properties;
 
     @Transactional
     public LoginResponse register( RegisterRequest request) {
@@ -58,6 +63,60 @@ public class AuthService {
         statusService.seedDefaults(saved);
 
         return jwtService.generateTokens(saved);
+    }
+
+    /**
+     * Створює анонімний (гостьовий) акаунт і одразу видає токени — юзер може
+     * користуватись трекером, не реєструючись.
+     * <p>
+     * Акаунт отримує повний набір дефолтних статусів, як звичайний, і згорає
+     * через {@code jobtracker.guest.ttl}, якщо не буде апгрейднутий реєстрацією.
+     */
+    @Transactional
+    public LoginResponse createGuestSession() {
+        User guest = new User();
+        // email і passwordHash лишаються null — CHECK-constraint у БД це допускає
+        // саме для гостя (див. V22__add_guest_users.sql).
+        guest.setGuest(true);
+        guest.setGuestExpiresAt(Instant.now().plus(properties.guest().ttl()));
+        guest.setRole(Role.USER);
+        guest.setActive(true);
+        guest.setEmailVerified(false);
+
+        User saved = userRepository.save(guest);
+        statusService.seedDefaults(saved);
+
+        return jwtService.generateTokens(saved);
+    }
+
+    /**
+     * Перетворює гостьовий акаунт у повноцінний: той самий рядок {@code users}
+     * отримує email і пароль, тому всі заявки, CV та згенерований контент
+     * залишаються на місці — ніякої міграції даних не відбувається.
+     */
+    @Transactional
+    public LoginResponse upgradeGuest(UUID userId, RegisterRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UnauthorizedException("Account not found"));
+
+        if (!user.isGuest()) {
+            throw new ConflictException("This account is already registered");
+        }
+
+        String email = request.getEmail().toLowerCase().trim();
+        if (userRepository.existsByEmail(email)) {
+            throw new ConflictException("User with email " + email + " already exists");
+        }
+
+        user.setEmail(email);
+        user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        user.setDisplayName(request.getDisplayName());
+        user.setGuest(false);
+        user.setGuestExpiresAt(null);
+        userRepository.save(user);
+
+        // Нова пара токенів: у subject тепер email замість "guest:<uuid>".
+        return jwtService.generateTokens(user);
     }
 
     @Transactional

@@ -1,5 +1,6 @@
 package com.jobtracker.backendJobTracker.application;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -33,6 +34,15 @@ public interface ApplicationRepository extends JpaRepository<Application, UUID>,
 
     // ─── custom statuses support ───
     long countByStatusId(UUID statusId);
+
+    /**
+     * Bulk-видалення заявок кількох юзерів — використовує {@code GuestCleanupJob}.
+     * Дочірні записи (cover letters, tailored CVs, preps, CV, history, skills)
+     * підчищаються FK-каскадами на рівні БД.
+     */
+    @Modifying
+    @Query("delete from Application a where a.user.id in :userIds")
+    void deleteByUserIdIn(@Param("userIds") Collection<UUID> userIds);
 
     @Modifying
     @Query("update Application a set a.status.id = :target where a.status.id = :from")

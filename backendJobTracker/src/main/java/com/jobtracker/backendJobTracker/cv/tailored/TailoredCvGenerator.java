@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobtracker.backendJobTracker.ai.AiService;
 import com.jobtracker.backendJobTracker.application.Application;
+import com.jobtracker.backendJobTracker.cv.CvContextResolver;
 import com.jobtracker.backendJobTracker.cv.models.Education;
 import com.jobtracker.backendJobTracker.cv.models.Experience;
 import com.jobtracker.backendJobTracker.cv.models.Language;
@@ -41,12 +42,18 @@ public class TailoredCvGenerator {
     private final MasterCvSkillRepository masterCvSkillRepository;
     private final ProjectRepository projectRepository;
     private final LanguageRepository languageRepository;
+    private final CvContextResolver cvContextResolver;
  
     public ParsedTailoredCv generate(MasterCv master, Application app, String emphasisInstructions) {
         String jobContext = buildJobContext(app);
         String masterContext = buildMasterContext(master);
  
-        String prompt = TailoredCvPrompt.build(jobContext, masterContext, emphasisInstructions);
+        // Якщо до заявки прикріплене власне CV — тейлоримо від нього, а master
+        // лишається фоновим контекстом (контакти, повний список досвіду).
+        String attachedCv = cvContextResolver.overrideText(app.getId()).orElse(null);
+
+        String prompt = TailoredCvPrompt.build(jobContext, masterContext, emphasisInstructions,
+                attachedCv);
         String json = aiService.complete(prompt);
  
         if (json == null || json.isBlank()) {

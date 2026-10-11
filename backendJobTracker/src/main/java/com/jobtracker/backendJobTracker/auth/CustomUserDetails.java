@@ -27,9 +27,15 @@ public record CustomUserDetails(User user) implements UserDetails {
         return user.getPasswordHash();
     }
 
+    /**
+     * Spring Security очікує non-null username. Гість не має email, тому віддаємо
+     * той самий ідентифікатор, що лежить у JWT subject.
+     */
     @Override
     public String getUsername() {
-        return user.getEmail();
+        return user.getEmail() != null
+                ? user.getEmail()
+                : JwtService.GUEST_SUBJECT_PREFIX + user.getId();
     }
 
     @Override
